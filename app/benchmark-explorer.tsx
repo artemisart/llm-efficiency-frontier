@@ -1,5 +1,12 @@
 "use client";
 
+import {
+  forceCollide,
+  forceSimulation,
+  forceX,
+  forceY,
+  type SimulationNodeDatum,
+} from "d3-force";
 import { useMemo, useState } from "react";
 import sourceData from "./data/benchmark-data.json";
 
@@ -60,7 +67,6 @@ type DataShape = {
 type ChartProps = {
   benchmark: Benchmark;
   models: Model[];
-  featured: boolean;
   linearCost: boolean;
   labels: boolean;
   activePoint: string | null;
@@ -77,6 +83,20 @@ const EFFORT_RANK: Record<string, number> = {
   xhigh: 4,
   max: 5,
 };
+const PLOT_WIDTH = 620;
+const PLOT_HEIGHT = 310;
+
+type LabelLayoutNode = SimulationNodeDatum & {
+  kind: "label" | "point";
+  modelId?: string;
+  anchorX: number;
+  anchorY: number;
+  radius: number;
+  labelWidth?: number;
+};
+
+type TooltipPlacement = "top" | "right" | "bottom" | "left";
+
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
   if (value < 0.01) return `$${value.toFixed(4)}`;
@@ -162,8 +182,8 @@ function createChartView(models: Model[], benchmarkId: string, linearCost: boole
       scoreMax: 1,
       xMin: 0,
       xMax: 1,
-      x: (_model: Model) => 0,
-      y: (_model: Model) => 0,
+      x: () => 0,
+      y: () => 0,
     };
   }
 
@@ -237,20 +257,183 @@ function createEffortLinks(
   });
 }
 
+function createParetoLabelLayout(
+  models: Model[],
+  view: ReturnType<typeof createChartView>,
+  paretoLabels: Set<string>,
+) {
+  const pointNodes: LabelLayoutNode[] = models.map((model) => {
+    const x = (view.x(model) / 100) * PLOT_WIDTH;
+    const y = (view.y(model) / 100) * PLOT_HEIGHT;
+    return {
+      kind: "point",
+      anchorX: x,
+      anchorY: y,
+      x,
+      y,
+      fx: x,
+      fy: y,
+      radius: 7,
+    };
+  });
+  const labelNodes: LabelLayoutNode[] = models
+    .filter((model) => paretoLabels.has(model.id))
+    .map((model) => {
+      const anchorX = (view.x(model) / 100) * PLOT_WIDTH;
+      const anchorY = (view.y(model) / 100) * PLOT_HEIGHT;
+      const labelWidth = Math.min(
+        110,
+        Math.max(38, model.shortName.length * 4.7 + 10),
+      );
+      const placeLeft = anchorX > PLOT_WIDTH * 0.7;
+      return {
+        kind: "label",
+        modelId: model.id,
+        anchorX: Math.min(
+          PLOT_WIDTH - labelWidth / 2,
+          Math.max(
+            labelWidth / 2,
+            anchorX + (placeLeft ? -(labelWidth / 2 + 12) : labelWidth / 2 + 12),
+          ),
+        ),
+        anchorY: Math.min(PLOT_HEIGHT - 9, Math.max(9, anchorY - 10)),
+        x: anchorX + (placeLeft ? -(labelWidth / 2 + 12) : labelWidth / 2 + 12),
+        y: anchorY - 10,
+        radius: Math.hypot(labelWidth, 16) / 2 + 3,
+        labelWidth,
+      };
+    });
+
+  const nodes = [...pointNodes, ...labelNodes];
+  const simulation = forceSimulation(nodes)
+    .force(
+      "x",
+      forceX<LabelLayoutNode>((node) => node.anchorX).strength((node) =>
+        node.kind === "label" ? 0.18 : 0,
+      ),
+    )
+    .force(
+      "y",
+      forceY<LabelLayoutNode>((node) => node.anchorY).strength((node) =>
+        node.kind === "label" ? 0.24 : 0,
+      ),
+    )
+    .force(
+      "collide",
+      forceCollide<LabelLayoutNode>((node) => node.radius)
+        .strength(0.92)
+        .iterations(3),
+    )
+    .alphaDecay(0.045)
+    .velocityDecay(0.55)
+    .stop();
+
+  for (let index = 0; index < 180; index += 1) {
+    simulation.tick();
+    for (const node of labelNodes) {
+      const halfWidth = (node.labelWidth ?? 40) / 2;
+      node.x = Math.min(
+        PLOT_WIDTH - halfWidth,
+        Math.max(halfWidth, node.x ?? node.anchorX),
+      );
+      node.y = Math.min(
+        PLOT_HEIGHT - 9,
+        Math.max(9, node.y ?? node.anchorY),
+      );
+    }
+  }
+
+  return new Map(
+    labelNodes.map((node) => [
+      node.modelId!,
+      {
+        left: ((node.x ?? node.anchorX) / PLOT_WIDTH) * 100,
+        top: ((node.y ?? node.anchorY) / PLOT_HEIGHT) * 100,
+      },
+    ]),
+  );
+}
+
+function chooseTooltipPlacement(
+  activeModel: Model | undefined,
+  models: Model[],
+  view: ReturnType<typeof createChartView>,
+): TooltipPlacement {
+  if (!activeModel) return "top";
+  const x = view.x(activeModel);
+  const y = view.y(activeModel);
+  const width = 38;
+  const height = 35;
+  const gap = 4;
+  const points = models
+    .filter((model) => model.id !== activeModel.id)
+    .map((model) => ({ x: view.x(model), y: view.y(model) }));
+  const candidates: Array<{
+    placement: TooltipPlacement;
+    left: number;
+    top: number;
+  }> = [
+    { placement: "top", left: x - width / 2, top: y - height - gap },
+    { placement: "bottom", left: x - width / 2, top: y + gap },
+    { placement: "right", left: x + gap, top: y - height / 2 },
+    { placement: "left", left: x - width - gap, top: y - height / 2 },
+  ];
+
+  return candidates
+    .map((candidate, priority) => {
+      const right = candidate.left + width;
+      const bottom = candidate.top + height;
+      const hiddenPoints = points.filter(
+        (point) =>
+          point.x >= candidate.left &&
+          point.x <= right &&
+          point.y >= candidate.top &&
+          point.y <= bottom,
+      ).length;
+      const overflow =
+        Math.max(0, -candidate.left) +
+        Math.max(0, right - 100) +
+        Math.max(0, -candidate.top) +
+        Math.max(0, bottom - 100);
+      return {
+        ...candidate,
+        score: hiddenPoints * 100 + overflow * 8 + priority * 0.01,
+      };
+    })
+    .sort((left, right) => left.score - right.score)[0].placement;
+}
+
 function BenchmarkChart({
   benchmark,
   models,
-  featured,
   linearCost,
   labels,
   activePoint,
   setActivePoint,
   resetFilters,
 }: ChartProps) {
-  const plotted = models.filter((model) => model.benchmarks[benchmark.id]);
-  const view = createChartView(plotted, benchmark.id, linearCost);
-  const effortLinks = createEffortLinks(plotted, benchmark.id, view);
-  const paretoLabels = computeParetoLabels(plotted, benchmark.id);
+  const {
+    plotted,
+    view,
+    effortLinks,
+    paretoLabels,
+    paretoLabelLayout,
+  } = useMemo(() => {
+    const nextPlotted = models.filter((model) => model.benchmarks[benchmark.id]);
+    const nextView = createChartView(nextPlotted, benchmark.id, linearCost);
+    const nextParetoLabels = computeParetoLabels(nextPlotted, benchmark.id);
+    return {
+      plotted: nextPlotted,
+      view: nextView,
+      effortLinks: createEffortLinks(nextPlotted, benchmark.id, nextView),
+      paretoLabels: nextParetoLabels,
+      paretoLabelLayout: createParetoLabelLayout(
+        nextPlotted,
+        nextView,
+        nextParetoLabels,
+      ),
+    };
+  }, [benchmark.id, linearCost, models]);
   const activeModel = plotted.find(
     (model) => activePoint === `${benchmark.id}:${model.id}`,
   );
@@ -259,6 +442,7 @@ function BenchmarkChart({
     (link) => link.groupKey === activeEffortKey,
   );
   const activeProviderSlug = activeModel?.creator.slug ?? null;
+  const tooltipPlacement = chooseTooltipPlacement(activeModel, plotted, view);
   const xTicks = Array.from({ length: 5 }, (_, index) => {
     const ratio = index / 4;
     const axisValue = view.xMin + (view.xMax - view.xMin) * ratio;
@@ -277,12 +461,9 @@ function BenchmarkChart({
   });
 
   return (
-    <article className={`gallery-card ${featured ? "featured" : ""}`}>
+    <article className="gallery-card">
       <div className="gallery-card-heading">
-        <div>
-          <p>Performance vs. cost</p>
-          <h3>{benchmark.label}</h3>
-        </div>
+        <h3>{benchmark.label}</h3>
         <a
           className="benchmark-source"
           href={benchmark.sourceUrl}
@@ -350,7 +531,6 @@ function BenchmarkChart({
               const value = model.benchmarks[benchmark.id];
               const pointId = `${benchmark.id}:${model.id}`;
               const isActive = activePoint === pointId;
-              const isParetoLabel = paretoLabels.has(model.id);
               const modelEffort = effortIdentity(model);
               const isEffortPeer =
                 activeEffortHasLine && modelEffort?.key === activeEffortKey;
@@ -381,11 +561,9 @@ function BenchmarkChart({
                     setActivePoint(pointId);
                   }}
                 >
-                  {(labels || isParetoLabel) && (
+                  {labels && (
                     <span
-                      className={`point-label ${
-                        isParetoLabel ? "frontier-label" : ""
-                      } ${x > 74 ? "align-right" : ""}`}
+                      className={`point-label ${x > 74 ? "align-right" : ""}`}
                     >
                       {model.shortName}
                     </span>
@@ -401,9 +579,11 @@ function BenchmarkChart({
                   )}
                   {isActive && (
                     <span
-                      className={`tooltip ${x < 18 ? "edge-left" : ""} ${
-                        x > 82 ? "edge-right" : ""
-                      }`}
+                      className={`tooltip tooltip-${tooltipPlacement} ${
+                        x < 18 ? "edge-left" : ""
+                      } ${x > 82 ? "edge-right" : ""} ${
+                        y < 22 ? "edge-top" : ""
+                      } ${y > 78 ? "edge-bottom" : ""}`}
                     >
                       <strong>{model.name}</strong>
                       <small>{model.creator.name}</small>
@@ -414,6 +594,28 @@ function BenchmarkChart({
                 </button>
               );
             })}
+            {!labels && (
+              <div className="pareto-label-layer" aria-hidden="true">
+                {plotted
+                  .filter((model) => paretoLabels.has(model.id))
+                  .map((model) => {
+                    const position = paretoLabelLayout.get(model.id);
+                    if (!position) return null;
+                    return (
+                      <span
+                        key={model.id}
+                        className="point-label frontier-label"
+                        style={{
+                          left: `${position.left}%`,
+                          top: `${position.top}%`,
+                        }}
+                      >
+                        {model.shortName}
+                      </span>
+                    );
+                  })}
+              </div>
+            )}
           </div>
           <div className="x-ticks" aria-hidden="true">
             {xTicks.map((tick) => (
@@ -539,46 +741,10 @@ export function BenchmarkExplorer() {
           <div>
             <h2>Every benchmark.<br />One field of view.</h2>
             <p>
-              Artificial Analysis’s Intelligence Index leads, followed by its component
-              evaluations, its Coding Agent Index, and three independent software and
+              Artificial Analysis’s Intelligence Index and Coding Agent Index lead,
+              followed by the component evaluations and three independent software and
               general-purpose benchmarks. Filters and cost scale apply to the complete gallery.
             </p>
-          </div>
-          <div className="chart-toggles" aria-label="Chart view">
-            <div className="cost-scale-toggle">
-              <span>Cost:</span>
-              <button
-                type="button"
-                className={linearCost ? "" : "active"}
-                onClick={() => {
-                  setLinearCost(false);
-                  setActivePoint(null);
-                }}
-              >
-                Log
-              </button>
-              <i aria-hidden="true" />
-              <button
-                type="button"
-                className={linearCost ? "active" : ""}
-                onClick={() => {
-                  setLinearCost(true);
-                  setActivePoint(null);
-                }}
-              >
-                Linear
-              </button>
-            </div>
-            <button
-              type="button"
-              className={`labels-toggle ${labels ? "active" : ""}`}
-              onClick={() => {
-                setLabels((value) => !value);
-                setActivePoint(null);
-              }}
-            >
-              Labels
-            </button>
           </div>
         </div>
 
@@ -649,6 +815,46 @@ export function BenchmarkExplorer() {
           </button>
         </div>
 
+        <div className="chart-toolbar">
+          <span>Chart view</span>
+          <div className="chart-toggles" aria-label="Chart view">
+            <div className="cost-scale-toggle">
+              <span>Cost:</span>
+              <button
+                type="button"
+                className={linearCost ? "" : "active"}
+                onClick={() => {
+                  setLinearCost(false);
+                  setActivePoint(null);
+                }}
+              >
+                Log
+              </button>
+              <i aria-hidden="true" />
+              <button
+                type="button"
+                className={linearCost ? "active" : ""}
+                onClick={() => {
+                  setLinearCost(true);
+                  setActivePoint(null);
+                }}
+              >
+                Linear
+              </button>
+            </div>
+            <button
+              type="button"
+              className={`labels-toggle ${labels ? "active" : ""}`}
+              onClick={() => {
+                setLabels((value) => !value);
+                setActivePoint(null);
+              }}
+            >
+              Labels
+            </button>
+          </div>
+        </div>
+
         <div className="gallery-key" aria-label="Chart legend">
           <span>
             <i className="legend-dot" /> Evaluated model
@@ -660,12 +866,11 @@ export function BenchmarkExplorer() {
         </div>
 
         <div className="chart-gallery">
-          {data.benchmarks.map((benchmark, index) => (
+          {data.benchmarks.map((benchmark) => (
             <BenchmarkChart
               key={benchmark.id}
               benchmark={benchmark}
               models={filteredModels}
-              featured={index === 0}
               linearCost={linearCost}
               labels={labels}
               activePoint={activePoint}
@@ -693,10 +898,12 @@ export function BenchmarkExplorer() {
           <div>
             <h3>What “cost” means</h3>
             <p>
-              Artificial Analysis uses <code> weightedCostPerTask</code>. FrontierCode
-              reports average task cost, DeepSWE mean rollout cost, and LiveBench cost per
-              successful task. The Coding Agent Index reports observed pay-per-token API cost
-              per task. Axis labels and card notes make those differences explicit.
+              The composite Artificial Analysis Intelligence Index uses a weighted-average
+              task cost. Its individual evaluations report average cost per task, while the
+              Coding Agent Index pools observed pay-per-token API cost per task across its
+              suite. FrontierCode reports average task cost, DeepSWE mean rollout cost, and
+              LiveBench cost per successful task. Axis labels and card notes make those
+              differences explicit.
             </p>
           </div>
           <div>

@@ -47,63 +47,63 @@ const artificialAnalysisMetadata = {
   "intelligence-index": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Weighted average cost per task (USD)",
     description:
       "A weighted composite of nine independently run evaluations spanning agentic work, coding, science, long-context reasoning, and factual reliability. It is a broad market signal rather than a substitute for workload-specific testing.",
   },
   "gdpval-aa-v2": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/gdpval-aa",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Measures agentic performance on 220 economically valuable tasks across 44 occupations and nine industries. Models browse, use a shell, and produce realistic deliverables such as spreadsheets, presentations, documents, and diagrams.",
   },
   "tau3-banking": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/tau3-banking",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Tests customer-support agents on realistic banking workflows. Success requires searching a large policy knowledge base, maintaining conversational state, and executing the correct sequence of tool calls without violating constraints.",
   },
   "terminal-bench-v2-1": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/terminalbench-v2-1",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Evaluates agents on 89 verified terminal tasks across software engineering, system administration, security, data processing, and model training. Each task runs in a real sandbox and is checked by an executable verification suite.",
   },
   scicode: {
     sourceUrl: "https://artificialanalysis.ai/evaluations/scicode",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "A scientist-curated coding evaluation with 288 subproblems drawn from 80 laboratory problems across 16 scientific disciplines. It requires both domain reasoning and correct implementation of research-oriented numerical code.",
   },
   "humanitys-last-exam": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/humanitys-last-exam",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "A frontier academic benchmark of 2,500 expert-vetted questions across mathematics, science, engineering, humanities, and social science. Its breadth and difficulty are designed to resist simple saturation.",
   },
   "gpqa-diamond": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/gpqa-diamond",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "The hardest 198 questions from GPQA, written and validated by domain experts in physics, biology, and chemistry. The questions are deliberately Google-resistant and require graduate-level scientific reasoning.",
   },
   critpt: {
     sourceUrl: "https://artificialanalysis.ai/evaluations/critpt",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Tests research-scale physics reasoning on 71 composite challenges created by more than 50 researchers across 11 subfields. Guess-resistant answers include symbolic expressions, numerical arrays, and executable functions.",
   },
   "aa-omniscience": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/omniscience",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Measures factual reliability across 6,000 questions, 42 topics, and six economically relevant domains. The index rewards correct answers, penalizes confident hallucinations, and does not penalize abstention.",
   },
@@ -111,7 +111,7 @@ const artificialAnalysisMetadata = {
     sourceUrl:
       "https://artificialanalysis.ai/evaluations/artificial-analysis-long-context-reasoning",
     sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted cost per task (USD)",
+    costAxisLabel: "Average cost per task (USD)",
     description:
       "Evaluates whether models can retrieve, connect, and synthesize evidence from documents ranging from roughly 10,000 to 100,000 tokens. It targets reasoning over distant context, not simple needle retrieval.",
   },

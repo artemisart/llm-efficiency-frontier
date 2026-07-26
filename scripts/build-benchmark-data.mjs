@@ -35,7 +35,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Professional-task performance, normalized by Artificial Analysis for the Intelligence Index.",
-    costNote: "Weighted cost per GDPval-AA task.",
+    costNote: "Average cost per GDPval-AA task.",
   },
   {
     id: "tau3-banking",
@@ -47,7 +47,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Agentic banking benchmark measuring successful completion of multi-step service tasks.",
-    costNote: "Weighted cost per τ³-Banking task.",
+    costNote: "Average cost per τ³-Banking task.",
   },
   {
     id: "terminal-bench-v2-1",
@@ -59,7 +59,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Capability on realistic terminal-based tasks that require planning, tools, and execution.",
-    costNote: "Weighted cost per Terminal-Bench v2.1 task.",
+    costNote: "Average cost per Terminal-Bench v2.1 task.",
   },
   {
     id: "scicode",
@@ -71,7 +71,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Scientific coding performance on problems requiring domain reasoning and implementation.",
-    costNote: "Weighted cost per SciCode task.",
+    costNote: "Average cost per SciCode task.",
   },
   {
     id: "humanitys-last-exam",
@@ -83,7 +83,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Broad expert-level academic questions designed to resist simple benchmark saturation.",
-    costNote: "Weighted cost per Humanity’s Last Exam task.",
+    costNote: "Average cost per Humanity’s Last Exam task.",
   },
   {
     id: "gpqa-diamond",
@@ -95,7 +95,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Graduate-level, expert-written science questions where strong reasoning matters.",
-    costNote: "Weighted cost per GPQA Diamond task.",
+    costNote: "Average cost per GPQA Diamond task.",
   },
   {
     id: "critpt",
@@ -107,7 +107,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Critical reasoning evaluation included in Artificial Analysis Intelligence Index v4.1.",
-    costNote: "Weighted cost per CritPt task.",
+    costNote: "Average cost per CritPt task.",
   },
   {
     id: "aa-omniscience",
@@ -119,7 +119,7 @@ const benchmarks = [
     scoreSuffix: "",
     description:
       "Artificial Analysis index balancing accurate knowledge against confident hallucination.",
-    costNote: "Weighted cost per AA-Omniscience task.",
+    costNote: "Average cost per AA-Omniscience task.",
   },
   {
     id: "aa-lcr",
@@ -131,7 +131,7 @@ const benchmarks = [
     scoreSuffix: "%",
     description:
       "Artificial Analysis Long Context Reasoning benchmark for retrieving and using distant context.",
-    costNote: "Weighted cost per AA-LCR task.",
+    costNote: "Average cost per AA-LCR task.",
   },
 ];
 
