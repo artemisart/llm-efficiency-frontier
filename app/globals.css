@@ -1040,3 +1040,661 @@ select:focus-visible {
     transition: none;
   }
 }
+
+/* Theme comparison lab */
+
+main[data-theme] {
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+  transition:
+    background 180ms ease,
+    color 180ms ease;
+}
+
+.theme-lab {
+  position: sticky;
+  z-index: 90;
+  top: 72px;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: stretch;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--paper) 94%, transparent);
+  backdrop-filter: blur(16px);
+}
+
+.theme-lab-label {
+  min-width: 178px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
+  padding: 9px 22px;
+  border-right: 1px solid var(--line);
+}
+
+.theme-lab-label span {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.theme-lab-label small {
+  color: var(--muted);
+  font-size: 9px;
+}
+
+.theme-options {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.theme-options button {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 1px 8px;
+  align-content: center;
+  padding: 9px 15px;
+  border: 0;
+  border-right: 1px solid var(--line);
+  background: transparent;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.theme-options button i {
+  grid-row: 1 / 3;
+  align-self: center;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 9px;
+  font-style: normal;
+}
+
+.theme-options button span {
+  overflow: hidden;
+  font-size: 10px;
+  font-weight: 750;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-options button small {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 8px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.theme-options button.active {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.theme-options button.active i,
+.theme-options button.active small {
+  color: color-mix(in srgb, var(--paper) 72%, transparent);
+}
+
+main[data-theme] .explorer-section,
+main[data-theme] .method-section {
+  padding-right: max(32px, calc((100vw - 1540px) / 2));
+  padding-left: max(32px, calc((100vw - 1540px) / 2));
+  scroll-margin-top: 140px;
+}
+
+main[data-theme] .gallery-heading {
+  border-color: var(--line);
+}
+
+main[data-theme] .controls input[type="text"],
+main[data-theme] .controls input:not([type]),
+main[data-theme] .controls select,
+main[data-theme] .search-control input {
+  border-color: var(--line);
+  background: var(--white);
+  color: var(--ink);
+}
+
+main[data-theme] .chart-gallery {
+  gap: 20px;
+  border: 0;
+}
+
+main[data-theme] .gallery-card {
+  border: 1px solid var(--line);
+}
+
+main[data-theme] .plot-area {
+  border-color: var(--ink);
+  background: color-mix(in srgb, var(--white) 94%, var(--paper));
+}
+
+main[data-theme] .method-grid {
+  border-color: color-mix(in srgb, var(--muted) 52%, transparent);
+}
+
+/* 01 — Analytical Studio */
+
+main[data-theme="analytical"] {
+  --paper: #f7f7f4;
+  --paper-2: #eceeea;
+  --ink: #171a18;
+  --muted: #68706a;
+  --line: #d5dad5;
+  --soft-line: rgba(23, 26, 24, 0.1);
+  --coral: #16845b;
+  --acid: #8de2b8;
+  --white: #ffffff;
+  font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+main[data-theme="analytical"] .site-header {
+  border-color: var(--line);
+  background: rgba(247, 247, 244, 0.92);
+}
+
+main[data-theme="analytical"] .wordmark span {
+  border-radius: 8px;
+  background: var(--ink);
+}
+
+main[data-theme="analytical"] .hero {
+  min-height: 480px;
+  grid-template-columns: minmax(0, 1.25fr) minmax(290px, 0.75fr);
+  border-color: var(--line);
+  background:
+    radial-gradient(circle at 78% 38%, rgba(22, 132, 91, 0.12), transparent 28%),
+    var(--paper);
+}
+
+main[data-theme="analytical"] .hero h1 {
+  max-width: 900px;
+  font-size: clamp(66px, 6.6vw, 116px);
+  line-height: 0.9;
+  letter-spacing: -0.065em;
+  text-transform: none;
+}
+
+main[data-theme="analytical"] .hero h1 em {
+  color: var(--coral);
+  -webkit-text-stroke: 0;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 850;
+}
+
+main[data-theme="analytical"] .hero-copy {
+  font-family: inherit;
+  font-size: clamp(20px, 1.7vw, 27px);
+}
+
+main[data-theme="analytical"] .gallery-heading h2,
+main[data-theme="analytical"] .gallery-card-heading h3,
+main[data-theme="analytical"] .method-grid h2,
+main[data-theme="analytical"] .download-panel strong {
+  font-family: inherit;
+}
+
+main[data-theme="analytical"] .gallery-heading h2 {
+  font-size: clamp(44px, 4.4vw, 72px);
+  font-weight: 700;
+}
+
+main[data-theme="analytical"] .controls {
+  margin: 22px 0 0;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--white);
+}
+
+main[data-theme="analytical"] .controls input[type="text"],
+main[data-theme="analytical"] .controls input:not([type]),
+main[data-theme="analytical"] .controls select,
+main[data-theme="analytical"] .search-control input,
+main[data-theme="analytical"] .chart-toggles,
+main[data-theme="analytical"] .benchmark-source {
+  border-radius: 8px;
+}
+
+main[data-theme="analytical"] .gallery-card {
+  border-radius: 16px;
+  box-shadow: 0 8px 28px rgba(23, 26, 24, 0.055);
+}
+
+main[data-theme="analytical"] .gallery-card-heading h3 {
+  font-weight: 650;
+}
+
+main[data-theme="analytical"] .method-section {
+  background: #151a17;
+}
+
+/* 02 — Dark Observatory */
+
+main[data-theme="observatory"] {
+  --paper: #0d1117;
+  --paper-2: #111821;
+  --ink: #e7edf3;
+  --muted: #98a6b5;
+  --line: #303b47;
+  --soft-line: rgba(231, 237, 243, 0.1);
+  --coral: #5fe0a1;
+  --acid: #9df7c5;
+  --white: #161c24;
+  font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+main[data-theme="observatory"] .site-header {
+  border-color: var(--line);
+  background: rgba(13, 17, 23, 0.92);
+}
+
+main[data-theme="observatory"] .wordmark span {
+  border-radius: 50%;
+  background: var(--coral);
+  color: #07110c;
+}
+
+main[data-theme="observatory"] .theme-options button.active {
+  background: var(--coral);
+  color: #07110c;
+}
+
+main[data-theme="observatory"] .theme-options button.active i,
+main[data-theme="observatory"] .theme-options button.active small {
+  color: rgba(7, 17, 12, 0.68);
+}
+
+main[data-theme="observatory"] .hero {
+  min-height: 500px;
+  border-color: var(--line);
+  background:
+    radial-gradient(circle at 78% 38%, rgba(95, 224, 161, 0.18), transparent 28%),
+    linear-gradient(rgba(95, 224, 161, 0.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(95, 224, 161, 0.035) 1px, transparent 1px),
+    var(--paper);
+  background-size: auto, 40px 40px, 40px 40px, auto;
+}
+
+main[data-theme="observatory"] .eyebrow {
+  background: rgba(22, 28, 36, 0.9);
+}
+
+main[data-theme="observatory"] .hero h1 {
+  font-size: clamp(68px, 7vw, 124px);
+  line-height: 0.88;
+  text-transform: none;
+}
+
+main[data-theme="observatory"] .hero h1 em {
+  color: var(--coral);
+  -webkit-text-stroke: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-style: normal;
+  font-weight: 700;
+}
+
+main[data-theme="observatory"] .hero-copy {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: clamp(17px, 1.45vw, 23px);
+}
+
+main[data-theme="observatory"] .gallery-heading h2,
+main[data-theme="observatory"] .gallery-card-heading h3,
+main[data-theme="observatory"] .method-grid h2,
+main[data-theme="observatory"] .download-panel strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+
+main[data-theme="observatory"] .gallery-heading h2 {
+  color: var(--coral);
+  font-size: clamp(40px, 4.6vw, 72px);
+  letter-spacing: -0.06em;
+}
+
+main[data-theme="observatory"] .controls {
+  margin-top: 20px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  background: var(--white);
+}
+
+main[data-theme="observatory"] .gallery-card {
+  border-color: var(--line);
+  background: var(--white);
+  box-shadow: 0 16px 44px rgba(0, 0, 0, 0.24);
+}
+
+main[data-theme="observatory"] .plot-area {
+  background: #10161d;
+}
+
+main[data-theme="observatory"] .grid-line.vertical {
+  border-color: rgba(231, 237, 243, 0.14);
+}
+
+main[data-theme="observatory"] .grid-line.horizontal {
+  border-color: rgba(231, 237, 243, 0.14);
+}
+
+main[data-theme="observatory"] .effort-links line {
+  stroke: rgba(231, 237, 243, 0.42);
+}
+
+main[data-theme="observatory"] .effort-links line.active {
+  stroke: var(--coral);
+}
+
+main[data-theme="observatory"] .point {
+  border-color: rgba(231, 237, 243, 0.55);
+  box-shadow: 0 0 0 2px rgba(16, 22, 29, 0.74);
+}
+
+main[data-theme="observatory"] .point:hover,
+main[data-theme="observatory"] .point.selected {
+  border-color: var(--ink);
+  box-shadow: 0 0 0 4px var(--white);
+}
+
+main[data-theme="observatory"] .method-section {
+  background: #070a0e;
+}
+
+/* 03 — Scientific Paper */
+
+main[data-theme="scientific"] {
+  --paper: #fcfcfa;
+  --paper-2: #f2f1ec;
+  --ink: #152238;
+  --muted: #667085;
+  --line: #cfd4da;
+  --soft-line: rgba(21, 34, 56, 0.1);
+  --coral: #387a59;
+  --acid: #d9eadf;
+  --white: #ffffff;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+main[data-theme="scientific"] .site-header {
+  border-color: var(--ink);
+  background: rgba(252, 252, 250, 0.96);
+}
+
+main[data-theme="scientific"] .wordmark span {
+  width: 31px;
+  height: 31px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--ink);
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+main[data-theme="scientific"] .theme-options button.active {
+  background: var(--ink);
+}
+
+main[data-theme="scientific"] .hero {
+  min-height: 460px;
+  border-color: var(--ink);
+  background: var(--paper);
+}
+
+main[data-theme="scientific"] .hero h1 {
+  max-width: 880px;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(64px, 6.5vw, 112px);
+  font-weight: 400;
+  line-height: 0.92;
+  letter-spacing: -0.055em;
+  text-transform: none;
+}
+
+main[data-theme="scientific"] .hero h1 em {
+  color: var(--ink);
+  -webkit-text-stroke: 0;
+  font-family: inherit;
+  font-style: italic;
+  font-weight: 400;
+}
+
+main[data-theme="scientific"] .hero-copy {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(20px, 1.7vw, 27px);
+}
+
+main[data-theme="scientific"] .section-kicker,
+main[data-theme="scientific"] .gallery-card-heading p,
+main[data-theme="scientific"] .gallery-card-footer strong {
+  letter-spacing: 0.14em;
+}
+
+main[data-theme="scientific"] .gallery-heading h2 {
+  font-size: clamp(44px, 4.6vw, 76px);
+}
+
+main[data-theme="scientific"] .controls {
+  border-color: var(--ink);
+}
+
+main[data-theme="scientific"] .chart-gallery {
+  gap: 0;
+  border-top: 1px solid var(--ink);
+  border-left: 1px solid var(--ink);
+}
+
+main[data-theme="scientific"] .gallery-card {
+  border-top: 0;
+  border-left: 0;
+  border-color: var(--ink);
+  background: var(--white);
+}
+
+main[data-theme="scientific"] .benchmark-source {
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  padding-right: 0;
+  padding-left: 0;
+}
+
+main[data-theme="scientific"] .method-section {
+  background: #f2f1ec;
+  color: var(--ink);
+}
+
+main[data-theme="scientific"] .section-kicker.light,
+main[data-theme="scientific"] .method-grid p,
+main[data-theme="scientific"] .download-panel span,
+main[data-theme="scientific"] .source-strip {
+  color: var(--muted);
+}
+
+main[data-theme="scientific"] .method-grid h3,
+main[data-theme="scientific"] .download-panel a,
+main[data-theme="scientific"] .source-strip a,
+main[data-theme="scientific"] .method-grid code {
+  color: var(--coral);
+}
+
+main[data-theme="scientific"] .download-panel {
+  border-color: var(--ink);
+}
+
+/* 04 — Data Atlas */
+
+main[data-theme="atlas"] {
+  --paper: #edf2f3;
+  --paper-2: #dfe8e9;
+  --ink: #162126;
+  --muted: #65747a;
+  --line: #d7e0e2;
+  --soft-line: rgba(22, 33, 38, 0.09);
+  --coral: #009875;
+  --acid: #9ff0d8;
+  --white: #ffffff;
+  font-family: Avenir, "Avenir Next", "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+main[data-theme="atlas"] .site-header {
+  border-color: var(--line);
+  background: rgba(255, 255, 255, 0.94);
+}
+
+main[data-theme="atlas"] .wordmark span {
+  border-radius: 12px;
+  background: var(--coral);
+  color: #ffffff;
+}
+
+main[data-theme="atlas"] .theme-options button {
+  border-radius: 10px;
+  border-right: 0;
+}
+
+main[data-theme="atlas"] .theme-options {
+  gap: 6px;
+  padding: 5px;
+}
+
+main[data-theme="atlas"] .theme-options button.active {
+  background: var(--coral);
+  color: #ffffff;
+}
+
+main[data-theme="atlas"] .theme-options button.active i,
+main[data-theme="atlas"] .theme-options button.active small {
+  color: rgba(255, 255, 255, 0.72);
+}
+
+main[data-theme="atlas"] .hero {
+  min-height: 500px;
+  border-color: var(--line);
+  background:
+    radial-gradient(circle at 77% 33%, rgba(0, 152, 117, 0.18), transparent 25%),
+    radial-gradient(circle at 65% 82%, rgba(49, 120, 185, 0.12), transparent 27%),
+    var(--paper);
+}
+
+main[data-theme="atlas"] .eyebrow {
+  border: 0;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.86);
+  box-shadow: 0 8px 24px rgba(32, 65, 73, 0.08);
+}
+
+main[data-theme="atlas"] .hero h1 {
+  font-size: clamp(68px, 7vw, 126px);
+  line-height: 0.86;
+  text-transform: none;
+}
+
+main[data-theme="atlas"] .hero h1 em {
+  color: var(--coral);
+  -webkit-text-stroke: 0;
+  font-family: inherit;
+  font-style: normal;
+  font-weight: 850;
+}
+
+main[data-theme="atlas"] .hero-copy {
+  font-family: inherit;
+  font-size: clamp(21px, 1.85vw, 29px);
+}
+
+main[data-theme="atlas"] .gallery-heading {
+  border: 0;
+}
+
+main[data-theme="atlas"] .gallery-heading h2,
+main[data-theme="atlas"] .gallery-card-heading h3,
+main[data-theme="atlas"] .method-grid h2,
+main[data-theme="atlas"] .download-panel strong {
+  font-family: inherit;
+  font-weight: 700;
+}
+
+main[data-theme="atlas"] .controls {
+  margin: 0 0 22px;
+  padding: 18px;
+  border: 0;
+  border-radius: 20px;
+  background: var(--white);
+  box-shadow: 0 10px 34px rgba(32, 65, 73, 0.08);
+}
+
+main[data-theme="atlas"] .controls input[type="text"],
+main[data-theme="atlas"] .controls input:not([type]),
+main[data-theme="atlas"] .controls select,
+main[data-theme="atlas"] .search-control input,
+main[data-theme="atlas"] .chart-toggles,
+main[data-theme="atlas"] .benchmark-source {
+  border-radius: 999px;
+}
+
+main[data-theme="atlas"] .chart-gallery {
+  gap: 24px;
+}
+
+main[data-theme="atlas"] .gallery-card {
+  border: 0;
+  border-radius: 24px;
+  background: var(--white);
+  box-shadow: 0 14px 42px rgba(32, 65, 73, 0.09);
+}
+
+main[data-theme="atlas"] .plot-area {
+  border: 0;
+  border-radius: 16px;
+  background: #f7faf9;
+}
+
+main[data-theme="atlas"] .method-section {
+  background: #123832;
+}
+
+@media (max-width: 1080px) {
+  .theme-lab {
+    grid-template-columns: 1fr;
+  }
+
+  .theme-lab-label {
+    display: none;
+  }
+
+  main[data-theme] .hero {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .theme-lab {
+    top: 60px;
+    display: block;
+    overflow-x: auto;
+  }
+
+  .theme-options {
+    min-width: 620px;
+  }
+
+  main[data-theme] .explorer-section,
+  main[data-theme] .method-section {
+    padding-right: 16px;
+    padding-left: 16px;
+    scroll-margin-top: 120px;
+  }
+
+  main[data-theme] .hero h1 {
+    font-size: clamp(46px, 13vw, 72px);
+  }
+
+  main[data-theme] .hero {
+    min-height: auto;
+  }
+}

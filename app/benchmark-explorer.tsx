@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import sourceData from "./data/benchmark-data.json";
 
 type BenchmarkValue = {
@@ -76,6 +76,33 @@ const EFFORT_RANK: Record<string, number> = {
   xhigh: 4,
   max: 5,
 };
+const THEMES = [
+  {
+    id: "analytical",
+    name: "Analytical Studio",
+    note: "Calm research tool",
+  },
+  {
+    id: "observatory",
+    name: "Dark Observatory",
+    note: "Technical and focused",
+  },
+  {
+    id: "scientific",
+    name: "Scientific Paper",
+    note: "Academic and restrained",
+  },
+  {
+    id: "atlas",
+    name: "Data Atlas",
+    note: "Visual and approachable",
+  },
+] as const;
+type ThemeId = (typeof THEMES)[number]["id"];
+
+function isThemeId(value: string | null): value is ThemeId {
+  return THEMES.some((theme) => theme.id === value);
+}
 
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
@@ -375,6 +402,7 @@ function BenchmarkChart({
 }
 
 export function BenchmarkExplorer() {
+  const [theme, setTheme] = useState<ThemeId>("analytical");
   const [query, setQuery] = useState("");
   const [creator, setCreator] = useState("all");
   const [reasoningOnly, setReasoningOnly] = useState(false);
@@ -383,6 +411,25 @@ export function BenchmarkExplorer() {
   const [linearCost, setLinearCost] = useState(false);
   const [labels, setLabels] = useState(false);
   const [activePoint, setActivePoint] = useState<string | null>(null);
+
+  useEffect(() => {
+    const queryTheme = new URLSearchParams(window.location.search).get("theme");
+    const savedTheme = window.localStorage.getItem("model-economics-theme");
+    const preferredTheme = isThemeId(queryTheme)
+      ? queryTheme
+      : isThemeId(savedTheme)
+        ? savedTheme
+        : "analytical";
+    setTheme(preferredTheme);
+  }, []);
+
+  function selectTheme(nextTheme: ThemeId) {
+    setTheme(nextTheme);
+    window.localStorage.setItem("model-economics-theme", nextTheme);
+    const url = new URL(window.location.href);
+    url.searchParams.set("theme", nextTheme);
+    window.history.replaceState({}, "", url);
+  }
 
   const creators = useMemo(() => {
     const map = new Map<string, { slug: string; name: string }>();
@@ -424,7 +471,7 @@ export function BenchmarkExplorer() {
   }
 
   return (
-    <main>
+    <main data-theme={theme}>
       <header className="site-header">
         <a className="wordmark" href="#top" aria-label="Model Economics home">
           <span>ME</span>
@@ -441,6 +488,28 @@ export function BenchmarkExplorer() {
           Data: {data.meta.sourceCount} published sources ↓
         </a>
       </header>
+
+      <section className="theme-lab" aria-label="Compare visual themes">
+        <div className="theme-lab-label">
+          <span>Theme lab</span>
+          <small>Compare four directions</small>
+        </div>
+        <div className="theme-options" role="group" aria-label="Visual theme">
+          {THEMES.map((item, index) => (
+            <button
+              key={item.id}
+              type="button"
+              className={theme === item.id ? "active" : ""}
+              aria-pressed={theme === item.id}
+              onClick={() => selectTheme(item.id)}
+            >
+              <i>{String(index + 1).padStart(2, "0")}</i>
+              <span>{item.name}</span>
+              <small>{item.note}</small>
+            </button>
+          ))}
+        </div>
+      </section>
 
       <section className="hero" id="top">
         <div className="eyebrow">
