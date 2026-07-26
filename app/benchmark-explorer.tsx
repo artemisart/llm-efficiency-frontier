@@ -51,9 +51,15 @@ type DataShape = {
   models: Model[];
 };
 
-type SortMode = "efficiency" | "performance" | "cost";
-
 const data = sourceData as DataShape;
+const EFFORT_RANK: Record<string, number> = {
+  minimal: 0,
+  low: 1,
+  medium: 2,
+  high: 3,
+  xhigh: 4,
+  max: 5,
+};
 
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
@@ -92,27 +98,15 @@ function computePareto(models: Model[], benchmarkId: string) {
   return frontier;
 }
 
-function efficiencyScores(models: Model[], benchmarkId: string) {
-  const byPerformance = [...models].sort(
-    (left, right) =>
-      left.benchmarks[benchmarkId].score - right.benchmarks[benchmarkId].score,
-  );
-  const byCost = [...models].sort(
-    (left, right) =>
-      right.benchmarks[benchmarkId].cost - left.benchmarks[benchmarkId].cost,
-  );
-  const performanceRank = new Map(
-    byPerformance.map((model, index) => [model.id, index / Math.max(1, models.length - 1)]),
-  );
-  const costRank = new Map(
-    byCost.map((model, index) => [model.id, index / Math.max(1, models.length - 1)]),
-  );
-  return new Map(
-    models.map((model) => [
-      model.id,
-      ((performanceRank.get(model.id) ?? 0) + (costRank.get(model.id) ?? 0)) / 2,
-    ]),
-  );
+function effortIdentity(model: Model) {
+  const settings = model.name.match(/\(([^()]*)\)\s*$/);
+  if (!settings) return null;
+  const effort = settings[1].match(/\b(minimal|low|medium|xhigh|high|max)\s*(?:effort)?\b/i);
+  if (!effort) return null;
+  return {
+    key: `${model.creator.slug}:${model.name.slice(0, settings.index).trim().toLowerCase()}`,
+    rank: EFFORT_RANK[effort[1].toLowerCase()],
+  };
 }
 
 export function BenchmarkExplorer() {
@@ -124,7 +118,6 @@ export function BenchmarkExplorer() {
   const [includeDeprecated, setIncludeDeprecated] = useState(true);
   const [linearCost, setLinearCost] = useState(false);
   const [labels, setLabels] = useState(false);
-  const [sortMode, setSortMode] = useState<SortMode>("efficiency");
   const [activeModel, setActiveModel] = useState<string | null>(null);
 
   const benchmark = data.benchmarks.find((item) => item.id === benchmarkId)!;
@@ -170,6 +163,18 @@ export function BenchmarkExplorer() {
 
   const view = useMemo(() => {
     const values = plotted.map((model) => model.benchmarks[benchmarkId]);
+    if (!values.length) {
+      return {
+        costMin: 0,
+        costMax: 1,
+        scoreMin: 0,
+        scoreMax: 1,
+        xMin: 0,
+        xMax: 1,
+        x: () => 0,
+        y: () => 0,
+      };
+    }
     const costs = values.map((value) => value.cost);
     const scores = values.map((value) => value.score);
     const costMin = Math.min(...costs);
@@ -179,46 +184,73 @@ export function BenchmarkExplorer() {
     const xMin = linearCost ? costMin : Math.log10(costMin);
     const xMax = linearCost ? costMax : Math.log10(costMax);
     const yPadding = Math.max((scoreMax - scoreMin) * 0.09, 1);
+    const yMin =
+      benchmarkId === "aa-omniscience"
+        ? scoreMin - yPadding
+        : Math.max(0, scoreMin - yPadding);
+    const yMax = scoreMax + yPadding;
 
     return {
       costMin,
       costMax,
-      scoreMin: scoreMin - yPadding,
-      scoreMax: scoreMax + yPadding,
+      scoreMin: yMin,
+      scoreMax: yMax,
       xMin,
       xMax,
       x(model: Model) {
         const cost = model.benchmarks[benchmarkId].cost;
         const position = linearCost ? cost : Math.log10(cost);
-        return ((position - xMin) / Math.max(xMax - xMin, 0.00001)) * 100;
+        return (
+          Math.round(
+            (((position - xMin) / Math.max(xMax - xMin, 0.00001)) * 100) *
+              10_000,
+          ) / 10_000
+        );
       },
       y(model: Model) {
         const value = model.benchmarks[benchmarkId].score;
-        return (
-          100 -
-          ((value - (scoreMin - yPadding)) /
-            Math.max(scoreMax + yPadding - (scoreMin - yPadding), 0.00001)) *
-            100
-        );
+        return Math.round(
+          (100 -
+            ((value - yMin) /
+              Math.max(yMax - yMin, 0.00001)) *
+              100) *
+            10_000,
+        ) / 10_000;
       },
     };
   }, [benchmarkId, linearCost, plotted]);
 
   const pareto = useMemo(() => computePareto(plotted, benchmarkId), [benchmarkId, plotted]);
-  const efficiencies = useMemo(
-    () => efficiencyScores(plotted, benchmarkId),
-    [benchmarkId, plotted],
-  );
+  const effortLinks = useMemo(() => {
+    const groups = new Map<string, Array<{ model: Model; rank: number }>>();
+    for (const model of plotted) {
+      const identity = effortIdentity(model);
+      if (!identity) continue;
+      const group = groups.get(identity.key) ?? [];
+      group.push({ model, rank: identity.rank });
+      groups.set(identity.key, group);
+    }
 
-  const ranked = useMemo(() => {
-    return [...plotted].sort((left, right) => {
-      const leftValue = left.benchmarks[benchmarkId];
-      const rightValue = right.benchmarks[benchmarkId];
-      if (sortMode === "performance") return rightValue.score - leftValue.score;
-      if (sortMode === "cost") return leftValue.cost - rightValue.cost;
-      return (efficiencies.get(right.id) ?? 0) - (efficiencies.get(left.id) ?? 0);
+    return [...groups.entries()].flatMap(([key, group]) => {
+      if (group.length < 2) return [];
+      const ordered = group.sort(
+        (left, right) =>
+          left.rank - right.rank ||
+          left.model.benchmarks[benchmarkId].cost -
+            right.model.benchmarks[benchmarkId].cost,
+      );
+      return ordered.slice(1).map((current, index) => {
+        const previous = ordered[index];
+        return {
+          key: `${key}:${previous.model.id}:${current.model.id}`,
+          x1: view.x(previous.model),
+          y1: view.y(previous.model),
+          x2: view.x(current.model),
+          y2: view.y(current.model),
+        };
+      });
     });
-  }, [benchmarkId, efficiencies, plotted, sortMode]);
+  }, [benchmarkId, plotted, view]);
 
   const highlights = useMemo(() => {
     if (!plotted.length) return null;
@@ -271,7 +303,6 @@ export function BenchmarkExplorer() {
         </a>
         <nav aria-label="Page navigation">
           <a href="#explorer">Explorer</a>
-          <a href="#table">Models</a>
           <a href="#method">Method</a>
         </nav>
         <a
@@ -293,9 +324,8 @@ export function BenchmarkExplorer() {
             year: "numeric",
           })}
         </div>
-        <h1>
-          The price of
-          <br />
+        <h1 aria-label="The price of performance.">
+          <span>The price of</span>
           <em>performance.</em>
         </h1>
         <p className="hero-copy">
@@ -377,7 +407,7 @@ export function BenchmarkExplorer() {
               checked={openWeightsOnly}
               onChange={(event) => setOpenWeightsOnly(event.target.checked)}
             />
-            <span>Open weights</span>
+            <span>Open weights only</span>
           </label>
           <label className="check-control">
             <input
@@ -385,7 +415,7 @@ export function BenchmarkExplorer() {
               checked={includeDeprecated}
               onChange={(event) => setIncludeDeprecated(event.target.checked)}
             />
-            <span>Include legacy</span>
+            <span>Include older models</span>
           </label>
           <button type="button" className="reset-button" onClick={resetFilters}>
             Reset
@@ -435,6 +465,9 @@ export function BenchmarkExplorer() {
                   ))}
                 </div>
                 <div className="plot-area" onMouseLeave={() => setActiveModel(null)}>
+                  <div className="chart-attractive-zone" aria-hidden="true">
+                    <span>Attractive region ↖</span>
+                  </div>
                   {xTicks.map((tick) => (
                     <i
                       key={`x-${tick.position}`}
@@ -449,6 +482,23 @@ export function BenchmarkExplorer() {
                       style={{ top: `${tick.position}%` }}
                     />
                   ))}
+                  <svg
+                    className="effort-links"
+                    viewBox="0 0 100 100"
+                    preserveAspectRatio="none"
+                    aria-hidden="true"
+                  >
+                    {effortLinks.map((link) => (
+                      <line
+                        key={link.key}
+                        x1={link.x1}
+                        y1={link.y1}
+                        x2={link.x2}
+                        y2={link.y2}
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
+                  </svg>
                   {plotted.map((model) => {
                     const x = view.x(model);
                     const y = view.y(model);
@@ -524,6 +574,9 @@ export function BenchmarkExplorer() {
               <span>
                 <i className="legend-dot" /> Other evaluated model
               </span>
+              <span>
+                <i className="legend-link" /> Same model, different effort
+              </span>
               <strong>
                 {plotted.length} of {benchmark.modelsWithData} plotted
               </strong>
@@ -571,71 +624,9 @@ export function BenchmarkExplorer() {
         </div>
       </section>
 
-      <section className="table-section" id="table">
-        <div className="table-title-row">
-          <div>
-            <div className="section-kicker">
-              <span>02</span>
-              Model ledger
-            </div>
-            <h2>Every plotted model.</h2>
-          </div>
-          <div className="sort-controls">
-            <span>Sort</span>
-            {(["efficiency", "performance", "cost"] as SortMode[]).map((mode) => (
-              <button
-                key={mode}
-                type="button"
-                className={sortMode === mode ? "active" : ""}
-                onClick={() => setSortMode(mode)}
-              >
-                {mode}
-              </button>
-            ))}
-          </div>
-        </div>
-        <div className="model-table" role="table" aria-label={`${benchmark.label} models`}>
-          <div className="model-row table-head" role="row">
-            <span>#</span>
-            <span>Model</span>
-            <span>Lab</span>
-            <span>Performance</span>
-            <span>Cost / task</span>
-            <span>Position</span>
-          </div>
-          {ranked.map((model, index) => {
-            const value = model.benchmarks[benchmarkId];
-            return (
-              <a
-                className="model-row"
-                role="row"
-                key={model.id}
-                href={`https://artificialanalysis.ai/models/${model.slug}`}
-                target="_blank"
-                rel="noreferrer"
-              >
-                <span>{String(index + 1).padStart(2, "0")}</span>
-                <span>
-                  <i style={{ backgroundColor: model.creator.color }} />
-                  <strong>{model.name}</strong>
-                  {model.reasoning && <small>R</small>}
-                  {model.openWeights && <small>OW</small>}
-                </span>
-                <span>{model.creator.name}</span>
-                <span>{score(value.score, benchmark.scoreSuffix)}</span>
-                <span>{money(value.cost)}</span>
-                <span className={pareto.has(model.id) ? "frontier-status" : ""}>
-                  {pareto.has(model.id) ? "Frontier" : "Field"}
-                </span>
-              </a>
-            );
-          })}
-        </div>
-      </section>
-
       <section className="method-section" id="method">
         <div className="section-kicker light">
-          <span>03</span>
+          <span>02</span>
           Data & method
         </div>
         <div className="method-grid">
