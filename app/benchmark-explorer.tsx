@@ -24,6 +24,7 @@ type Model = {
   deprecated: boolean;
   reasoning: boolean;
   openWeights: boolean;
+  parameters: number | null;
   creator: {
     id: string;
     slug: string;
@@ -85,6 +86,15 @@ const EFFORT_RANK: Record<string, number> = {
 };
 const PLOT_WIDTH = 620;
 const PLOT_HEIGHT = 310;
+const SIZE_RANGES = [
+  { value: "all", label: "Any model size", min: null, max: null },
+  { value: "known", label: "Known sizes only", min: 0, max: Infinity },
+  { value: "under-7", label: "Under 7B", min: 0, max: 7 },
+  { value: "7-30", label: "7B–30B", min: 7, max: 30 },
+  { value: "30-100", label: "30B–100B", min: 30, max: 100 },
+  { value: "100-300", label: "100B–300B", min: 100, max: 300 },
+  { value: "300-plus", label: "300B+", min: 300, max: Infinity },
+] as const;
 
 type LabelLayoutNode = SimulationNodeDatum & {
   kind: "label" | "point";
@@ -114,6 +124,13 @@ function compactMoney(value: number) {
   if (value >= 0.1) return `$${value.toFixed(1)}`;
   if (value >= 0.01) return `$${value.toFixed(2)}`;
   return `$${value.toPrecision(1)}`;
+}
+
+function formatParameters(value: number) {
+  if (value < 1) return `${Math.round(value * 1000)}M parameters`;
+  return `${value.toLocaleString("en-US", {
+    maximumFractionDigits: value < 10 ? 1 : 0,
+  })}B parameters`;
 }
 
 function roundPosition(value: number) {
@@ -477,7 +494,7 @@ function BenchmarkChart({
 
       {plotted.length ? (
         <div className="plot-shell">
-          <span className="y-axis-title">Performance ↑</span>
+          <span className="y-axis-title">Performance →</span>
           <div className="y-ticks" aria-hidden="true">
             {yTicks.map((tick) => (
               <span key={tick.position} style={{ top: `${tick.position}%` }}>
@@ -586,7 +603,12 @@ function BenchmarkChart({
                       } ${y > 78 ? "edge-bottom" : ""}`}
                     >
                       <strong>{model.name}</strong>
-                      <small>{model.creator.name}</small>
+                      <small>
+                        {model.creator.name}
+                        {Number.isFinite(model.parameters)
+                          ? ` · ${formatParameters(model.parameters!)}`
+                          : ""}
+                      </small>
                       <b>{score(value.score, benchmark.scoreSuffix)}</b>
                       <em>{money(value.cost)} / task</em>
                     </span>
@@ -637,7 +659,6 @@ function BenchmarkChart({
       )}
 
       <div className="gallery-card-footer">
-        <span>{benchmark.costNote}</span>
         <strong>{plotted.length} plotted</strong>
       </div>
     </article>
@@ -646,7 +667,8 @@ function BenchmarkChart({
 
 export function BenchmarkExplorer() {
   const [query, setQuery] = useState("");
-  const [creator, setCreator] = useState("all");
+  const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
+  const [sizeRange, setSizeRange] = useState("all");
   const [reasoningOnly, setReasoningOnly] = useState(false);
   const [openWeightsOnly, setOpenWeightsOnly] = useState(false);
   const [includeDeprecated, setIncludeDeprecated] = useState(true);
@@ -667,9 +689,26 @@ export function BenchmarkExplorer() {
 
   const filteredModels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const selectedSizeRange = SIZE_RANGES.find(
+      (range) => range.value === sizeRange,
+    );
     return data.models.filter((model) => {
       if (!includeDeprecated && model.deprecated) return false;
-      if (creator !== "all" && model.creator.slug !== creator) return false;
+      if (
+        selectedCreators.length &&
+        !selectedCreators.includes(model.creator.slug)
+      ) {
+        return false;
+      }
+      if (selectedSizeRange?.value !== "all") {
+        if (!Number.isFinite(model.parameters)) return false;
+        if (
+          model.parameters! < (selectedSizeRange?.min ?? 0) ||
+          model.parameters! >= (selectedSizeRange?.max ?? Infinity)
+        ) {
+          return false;
+        }
+      }
       if (reasoningOnly && !model.reasoning) return false;
       if (openWeightsOnly && !model.openWeights) return false;
       if (
@@ -682,11 +721,19 @@ export function BenchmarkExplorer() {
       }
       return true;
     });
-  }, [creator, includeDeprecated, openWeightsOnly, query, reasoningOnly]);
+  }, [
+    includeDeprecated,
+    openWeightsOnly,
+    query,
+    reasoningOnly,
+    selectedCreators,
+    sizeRange,
+  ]);
 
   function resetFilters() {
     setQuery("");
-    setCreator("all");
+    setSelectedCreators([]);
+    setSizeRange("all");
     setReasoningOnly(false);
     setOpenWeightsOnly(false);
     setIncludeDeprecated(true);
@@ -760,19 +807,63 @@ export function BenchmarkExplorer() {
               placeholder="Model or lab"
             />
           </label>
-          <label>
-            <span>Lab</span>
+          <div className="filter-control multi-select-control">
+            <span>Labs</span>
+            <details>
+              <summary>
+                {selectedCreators.length === 0
+                  ? "All labs"
+                  : selectedCreators.length === 1
+                    ? creators.find(
+                        (item) => item.slug === selectedCreators[0],
+                      )?.name ?? "1 lab selected"
+                    : `${selectedCreators.length} labs selected`}
+              </summary>
+              <div className="multi-select-menu">
+                <div className="multi-select-actions">
+                  <strong>Select labs</strong>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedCreators([]);
+                      setActivePoint(null);
+                    }}
+                  >
+                    Clear
+                  </button>
+                </div>
+                {creators.map((item) => (
+                  <label key={item.slug}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCreators.includes(item.slug)}
+                      onChange={(event) => {
+                        setSelectedCreators((current) =>
+                          event.target.checked
+                            ? [...current, item.slug]
+                            : current.filter((slug) => slug !== item.slug),
+                        );
+                        setActivePoint(null);
+                      }}
+                    />
+                    <span>{item.name}</span>
+                  </label>
+                ))}
+              </div>
+            </details>
+          </div>
+          <label className="size-control">
+            <span>Model size</span>
             <select
-              value={creator}
+              value={sizeRange}
               onChange={(event) => {
-                setCreator(event.target.value);
+                setSizeRange(event.target.value);
                 setActivePoint(null);
               }}
             >
-              <option value="all">All labs</option>
-              {creators.map((item) => (
-                <option key={item.slug} value={item.slug}>
-                  {item.name}
+              {SIZE_RANGES.map((range) => (
+                <option key={range.value} value={range.value}>
+                  {range.label}
                 </option>
               ))}
             </select>

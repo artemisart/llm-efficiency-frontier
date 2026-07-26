@@ -302,6 +302,7 @@ function externalModel({
     deprecated: false,
     reasoning: Boolean(effort) || catalogModel?.reasoning || false,
     openWeights: catalogModel?.openWeights ?? inferOpenWeights(`${baseName} ${slugHint}`),
+    parameters: catalogModel?.parameters ?? null,
     creator,
     benchmarks: {
       [benchmarkId]: {

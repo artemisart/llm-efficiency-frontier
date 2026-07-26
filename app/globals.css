@@ -279,12 +279,131 @@ select:focus-visible {
   gap: 7px;
 }
 
-.controls label > span {
+.controls label > span,
+.filter-control > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
+}
+
+.filter-control {
+  display: grid;
+  gap: 7px;
+}
+
+.multi-select-control {
+  min-width: 190px;
+}
+
+.multi-select-control details {
+  position: relative;
+}
+
+.multi-select-control summary {
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
+  background: var(--white);
+  color: var(--ink);
+  cursor: pointer;
+  font-size: 13px;
+  list-style: none;
+  white-space: nowrap;
+}
+
+.multi-select-control summary::-webkit-details-marker {
+  display: none;
+}
+
+.multi-select-control summary::after {
+  content: "⌄";
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1;
+}
+
+.multi-select-control details[open] summary {
+  border-color: var(--ink);
+}
+
+.multi-select-menu {
+  position: absolute;
+  z-index: 100;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 260px;
+  max-height: 330px;
+  overflow-y: auto;
+  padding: 8px;
+  border: 1px solid var(--ink);
+  background: var(--white);
+  box-shadow: 0 14px 36px rgba(23, 26, 24, 0.16);
+}
+
+.multi-select-actions {
+  position: sticky;
+  z-index: 1;
+  top: -8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: -8px -8px 5px;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--white);
+}
+
+.multi-select-actions strong {
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.multi-select-actions button {
+  padding: 0;
+  border: 0;
+  border-bottom: 1px solid var(--ink);
+  background: transparent;
+  cursor: pointer;
+  font-size: 10px;
+  text-transform: uppercase;
+}
+
+.controls .multi-select-menu label {
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 3px;
+  cursor: pointer;
+}
+
+.controls .multi-select-menu label:hover {
+  background: var(--paper);
+}
+
+.controls .multi-select-menu label > span {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.multi-select-menu input {
+  flex: 0 0 auto;
+  width: 15px;
+  height: 15px;
+  accent-color: var(--ink);
 }
 
 .controls input[type="text"],
@@ -505,8 +624,8 @@ select:focus-visible {
   z-index: 0;
   top: 0;
   left: 0;
-  width: 50%;
-  height: 50%;
+  width: 25%;
+  height: 25%;
   background: rgba(114, 179, 91, 0.17);
   clip-path: polygon(0 0, 100% 0, 0 100%);
   pointer-events: none;
@@ -846,7 +965,7 @@ select:focus-visible {
 
 .gallery-card-footer {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 20px;
   align-items: start;
   margin-top: 17px;
@@ -855,10 +974,6 @@ select:focus-visible {
   color: var(--muted);
   font-size: 9px;
   line-height: 1.4;
-}
-
-.gallery-card-footer span {
-  max-width: 70%;
 }
 
 .gallery-card-footer strong {
@@ -1089,6 +1204,14 @@ select:focus-visible {
   }
 
   .controls label:not(.check-control) {
+    width: 100%;
+  }
+
+  .filter-control {
+    width: 100%;
+  }
+
+  .multi-select-menu {
     width: 100%;
   }
 

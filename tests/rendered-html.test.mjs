@@ -31,7 +31,11 @@ test("server-renders the complete benchmark gallery in the intended order", asyn
   const html = await response.text();
   assert.match(html, /<title>Model Economics/);
   assert.match(html, /class="chart-toolbar"/);
+  assert.match(html, /class="filter-control multi-select-control"/);
+  assert.match(html, />Known sizes only</);
+  assert.match(html, />Performance →</);
   assert.doesNotMatch(html, />Performance vs\. cost</);
+  assert.doesNotMatch(html, />Weighted average cost per Intelligence Index task\.</);
 
   const intelligence = html.indexOf("<h3>Intelligence Index</h3>");
   const coding = html.indexOf("<h3>AA Coding Agent Index v1.3</h3>");
@@ -71,4 +75,8 @@ test("ships collision-aware labels, adaptive tooltips, and refreshed FrontierCod
   for (const model of ["Grok 4.5", "SWE-1.7", "Kimi K2.7", "Composer 2.5"]) {
     assert.ok(frontierNames.has(model), `${model} is missing from FrontierCode`);
   }
+  assert.ok(
+    dataset.models.filter((model) => Number.isFinite(model.parameters)).length >= 374,
+  );
+  assert.match(css, /\.chart-better-zone\s*\{[^}]*width:\s*25%[^}]*height:\s*25%/s);
 });

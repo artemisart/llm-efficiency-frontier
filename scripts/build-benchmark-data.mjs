@@ -156,6 +156,7 @@ const normalizedModels = models.map((model) => ({
   deprecated: model.deprecated,
   reasoning: model.isReasoning,
   openWeights: model.isOpenWeights,
+  parameters: Number.isFinite(model.parameters) ? model.parameters : null,
   creator: {
     id: model.creator.id,
     slug: model.creator.slug,
