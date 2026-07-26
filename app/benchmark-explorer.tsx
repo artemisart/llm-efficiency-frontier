@@ -249,9 +249,6 @@ function BenchmarkChart({
           <p>Performance vs. weighted task cost</p>
           <h3>{benchmark.label}</h3>
         </div>
-        <span>
-          {plotted.length} / {benchmark.modelsWithData}
-        </span>
       </div>
       <p className="gallery-card-description">{benchmark.description}</p>
 

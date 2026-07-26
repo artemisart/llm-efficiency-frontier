@@ -437,15 +437,6 @@ select:focus-visible {
   letter-spacing: -0.03em;
 }
 
-.gallery-card-heading > span {
-  flex: 0 0 auto;
-  padding: 6px 8px;
-  border: 1px solid var(--line);
-  color: var(--muted);
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 9px;
-}
-
 .gallery-card-description {
   min-height: 42px;
   max-width: 720px;
