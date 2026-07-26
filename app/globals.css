@@ -562,7 +562,7 @@ select:focus-visible {
 }
 
 .effort-links line.active {
-  stroke: var(--coral);
+  stroke: #d8463e;
   stroke-width: 3;
   opacity: 1;
 }
@@ -581,7 +581,9 @@ select:focus-visible {
   transition:
     width 120ms ease,
     height 120ms ease,
-    box-shadow 120ms ease;
+    border-color 120ms ease,
+    box-shadow 120ms ease,
+    opacity 120ms ease;
 }
 
 .gallery-card.featured .point {
@@ -596,6 +598,27 @@ select:focus-visible {
   height: 15px;
   border: 2px solid var(--ink);
   box-shadow: 0 0 0 4px var(--white);
+}
+
+.plot-area.has-active-point .point.provider-muted {
+  opacity: 0.2;
+}
+
+.plot-area.has-active-point .point.provider-peer:not(.selected) {
+  z-index: 4;
+  width: 11px;
+  height: 11px;
+  border-color: var(--ink);
+  box-shadow:
+    0 0 0 2px var(--white),
+    0 0 0 4px rgba(22, 132, 91, 0.34);
+}
+
+.plot-area.has-active-point .point.effort-peer:not(.selected) {
+  border: 2px solid #d8463e;
+  box-shadow:
+    0 0 0 2px var(--white),
+    0 0 0 4px rgba(216, 70, 62, 0.24);
 }
 
 .point-label {
@@ -625,6 +648,42 @@ select:focus-visible {
   background: color-mix(in srgb, var(--white) 88%, transparent);
   box-shadow: 0 1px 4px rgba(23, 26, 24, 0.08);
   font-weight: 800;
+}
+
+.effort-level-label {
+  position: absolute;
+  z-index: 11;
+  top: 13px;
+  left: 50%;
+  width: max-content;
+  padding: 3px 5px;
+  transform: translateX(-50%);
+  border-radius: 4px;
+  background: #d8463e;
+  color: #ffffff;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  text-transform: uppercase;
+  pointer-events: none;
+}
+
+.effort-level-label.align-left {
+  left: -2px;
+  transform: none;
+}
+
+.effort-level-label.align-right {
+  right: -2px;
+  left: auto;
+  transform: none;
+}
+
+.effort-level-label.place-above {
+  top: auto;
+  bottom: 13px;
 }
 
 .tooltip {

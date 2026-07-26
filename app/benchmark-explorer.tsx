@@ -100,17 +100,24 @@ function roundPosition(value: number) {
   return Math.round(value * 10_000) / 10_000;
 }
 
+function chartPosition(ratio: number) {
+  const clamped = Math.min(1, Math.max(0, ratio));
+  return roundPosition(1.2 + clamped * 97.6);
+}
+
 function effortIdentity(model: Model) {
   const settings = model.name.match(/\(([^()]*)\)\s*$/);
   if (!settings) return null;
   const effort = settings[1].match(/\b(minimal|low|medium|xhigh|high|max)\s*(?:effort)?\b/i);
   if (!effort) return null;
+  const level = effort[1].toLowerCase();
   return {
     key: `${model.creator.slug}:${model.name
       .slice(0, settings.index ?? model.name.length)
       .trim()
       .toLowerCase()}`,
-    rank: EFFORT_RANK[effort[1].toLowerCase()],
+    rank: EFFORT_RANK[level],
+    label: level === "xhigh" ? "x-high" : level,
   };
 }
 
@@ -169,8 +176,9 @@ function createChartView(models: Model[], benchmarkId: string, linearCost: boole
   const xMin = linearCost ? costMin : Math.log10(costMin);
   const xMax = linearCost ? costMax : Math.log10(costMax);
   const yPadding = Math.max((scoreMax - scoreMin) * 0.09, 1);
-  const yMin = Math.max(0, scoreMin - yPadding);
-  const yMax = scoreMax + yPadding;
+  const yMin =
+    scoreMin < 0 ? scoreMin - yPadding : Math.max(0, scoreMin - yPadding);
+  const yMax = Math.max(0, scoreMax + yPadding);
 
   return {
     scoreMin: yMin,
@@ -180,14 +188,14 @@ function createChartView(models: Model[], benchmarkId: string, linearCost: boole
     x(model: Model) {
       const cost = model.benchmarks[benchmarkId].cost;
       const position = linearCost ? cost : Math.log10(cost);
-      return roundPosition(
-        ((position - xMin) / Math.max(xMax - xMin, 0.00001)) * 100,
+      return chartPosition(
+        (position - xMin) / Math.max(xMax - xMin, 0.00001),
       );
     },
     y(model: Model) {
       const value = model.benchmarks[benchmarkId].score;
-      return roundPosition(
-        100 - ((value - yMin) / Math.max(yMax - yMin, 0.00001)) * 100,
+      return chartPosition(
+        1 - (value - yMin) / Math.max(yMax - yMin, 0.00001),
       );
     },
   };
@@ -247,6 +255,10 @@ function BenchmarkChart({
     (model) => activePoint === `${benchmark.id}:${model.id}`,
   );
   const activeEffortKey = activeModel ? effortIdentity(activeModel)?.key : null;
+  const activeEffortHasLine = effortLinks.some(
+    (link) => link.groupKey === activeEffortKey,
+  );
+  const activeProviderSlug = activeModel?.creator.slug ?? null;
   const xTicks = Array.from({ length: 5 }, (_, index) => {
     const ratio = index / 4;
     const axisValue = view.xMin + (view.xMax - view.xMin) * ratio;
@@ -293,7 +305,7 @@ function BenchmarkChart({
             ))}
           </div>
           <div
-            className="plot-area"
+            className={`plot-area ${activeModel ? "has-active-point" : ""}`}
             onMouseLeave={() => setActivePoint(null)}
             onClick={() => setActivePoint(null)}
           >
@@ -339,11 +351,19 @@ function BenchmarkChart({
               const pointId = `${benchmark.id}:${model.id}`;
               const isActive = activePoint === pointId;
               const isParetoLabel = paretoLabels.has(model.id);
+              const modelEffort = effortIdentity(model);
+              const isEffortPeer =
+                activeEffortHasLine && modelEffort?.key === activeEffortKey;
+              const isProviderPeer =
+                activeProviderSlug !== null &&
+                model.creator.slug === activeProviderSlug;
               return (
                 <button
                   key={model.id}
                   type="button"
-                  className={`point ${isActive ? "selected" : ""}`}
+                  className={`point ${isActive ? "selected" : ""} ${
+                    isProviderPeer ? "provider-peer" : "provider-muted"
+                  } ${isEffortPeer ? "effort-peer" : ""}`}
                   style={{
                     left: `${x}%`,
                     top: `${y}%`,
@@ -368,6 +388,15 @@ function BenchmarkChart({
                       } ${x > 74 ? "align-right" : ""}`}
                     >
                       {model.shortName}
+                    </span>
+                  )}
+                  {isEffortPeer && modelEffort && (
+                    <span
+                      className={`effort-level-label ${
+                        x > 85 ? "align-right" : x < 15 ? "align-left" : ""
+                      } ${y > 82 ? "place-above" : ""}`}
+                    >
+                      {modelEffort.label}
                     </span>
                   )}
                   {isActive && (
