@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import sourceData from "./data/benchmark-data.json";
 
 type BenchmarkValue = {
@@ -48,6 +48,7 @@ type DataShape = {
     endpointCount: number;
     graphDatasetCount: number;
     externalModelCount: number;
+    codingAgentModelCount: number;
     sourceCount: number;
     citation: string;
     license: string;
@@ -76,34 +77,6 @@ const EFFORT_RANK: Record<string, number> = {
   xhigh: 4,
   max: 5,
 };
-const THEMES = [
-  {
-    id: "analytical",
-    name: "Analytical Studio",
-    note: "Calm research tool",
-  },
-  {
-    id: "observatory",
-    name: "Dark Observatory",
-    note: "Technical and focused",
-  },
-  {
-    id: "scientific",
-    name: "Scientific Paper",
-    note: "Academic and restrained",
-  },
-  {
-    id: "atlas",
-    name: "Data Atlas",
-    note: "Visual and approachable",
-  },
-] as const;
-type ThemeId = (typeof THEMES)[number]["id"];
-
-function isThemeId(value: string | null): value is ThemeId {
-  return THEMES.some((theme) => theme.id === value);
-}
-
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
   if (value < 0.01) return `$${value.toFixed(4)}`;
@@ -139,6 +112,39 @@ function effortIdentity(model: Model) {
       .toLowerCase()}`,
     rank: EFFORT_RANK[effort[1].toLowerCase()],
   };
+}
+
+function computeParetoLabels(models: Model[], benchmarkId: string) {
+  const sorted = [...models].sort(
+    (left, right) =>
+      left.benchmarks[benchmarkId].cost - right.benchmarks[benchmarkId].cost ||
+      right.benchmarks[benchmarkId].score - left.benchmarks[benchmarkId].score,
+  );
+  const frontier: Model[] = [];
+  let bestScore = Number.NEGATIVE_INFINITY;
+  for (const model of sorted) {
+    const value = model.benchmarks[benchmarkId];
+    if (value.score > bestScore) {
+      frontier.push(model);
+      bestScore = value.score;
+    }
+  }
+
+  const representativeByEffortGroup = new Map<string, Model>();
+  for (const model of frontier) {
+    const groupKey = effortIdentity(model)?.key ?? `model:${model.id}`;
+    const current = representativeByEffortGroup.get(groupKey);
+    if (
+      !current ||
+      model.benchmarks[benchmarkId].score >
+        current.benchmarks[benchmarkId].score
+    ) {
+      representativeByEffortGroup.set(groupKey, model);
+    }
+  }
+  return new Set(
+    [...representativeByEffortGroup.values()].map((model) => model.id),
+  );
 }
 
 function createChartView(models: Model[], benchmarkId: string, linearCost: boolean) {
@@ -236,6 +242,7 @@ function BenchmarkChart({
   const plotted = models.filter((model) => model.benchmarks[benchmark.id]);
   const view = createChartView(plotted, benchmark.id, linearCost);
   const effortLinks = createEffortLinks(plotted, benchmark.id, view);
+  const paretoLabels = computeParetoLabels(plotted, benchmark.id);
   const activeModel = plotted.find(
     (model) => activePoint === `${benchmark.id}:${model.id}`,
   );
@@ -331,6 +338,7 @@ function BenchmarkChart({
               const value = model.benchmarks[benchmark.id];
               const pointId = `${benchmark.id}:${model.id}`;
               const isActive = activePoint === pointId;
+              const isParetoLabel = paretoLabels.has(model.id);
               return (
                 <button
                   key={model.id}
@@ -353,8 +361,12 @@ function BenchmarkChart({
                     setActivePoint(pointId);
                   }}
                 >
-                  {labels && (
-                    <span className={`point-label ${x > 74 ? "align-right" : ""}`}>
+                  {(labels || isParetoLabel) && (
+                    <span
+                      className={`point-label ${
+                        isParetoLabel ? "frontier-label" : ""
+                      } ${x > 74 ? "align-right" : ""}`}
+                    >
                       {model.shortName}
                     </span>
                   )}
@@ -402,7 +414,6 @@ function BenchmarkChart({
 }
 
 export function BenchmarkExplorer() {
-  const [theme, setTheme] = useState<ThemeId>("analytical");
   const [query, setQuery] = useState("");
   const [creator, setCreator] = useState("all");
   const [reasoningOnly, setReasoningOnly] = useState(false);
@@ -411,25 +422,6 @@ export function BenchmarkExplorer() {
   const [linearCost, setLinearCost] = useState(false);
   const [labels, setLabels] = useState(false);
   const [activePoint, setActivePoint] = useState<string | null>(null);
-
-  useEffect(() => {
-    const queryTheme = new URLSearchParams(window.location.search).get("theme");
-    const savedTheme = window.localStorage.getItem("model-economics-theme");
-    const preferredTheme = isThemeId(queryTheme)
-      ? queryTheme
-      : isThemeId(savedTheme)
-        ? savedTheme
-        : "analytical";
-    setTheme(preferredTheme);
-  }, []);
-
-  function selectTheme(nextTheme: ThemeId) {
-    setTheme(nextTheme);
-    window.localStorage.setItem("model-economics-theme", nextTheme);
-    const url = new URL(window.location.href);
-    url.searchParams.set("theme", nextTheme);
-    window.history.replaceState({}, "", url);
-  }
 
   const creators = useMemo(() => {
     const map = new Map<string, { slug: string; name: string }>();
@@ -471,7 +463,7 @@ export function BenchmarkExplorer() {
   }
 
   return (
-    <main data-theme={theme}>
+    <main className="analytical-theme">
       <header className="site-header">
         <a className="wordmark" href="#top" aria-label="Model Economics home">
           <span>ME</span>
@@ -488,28 +480,6 @@ export function BenchmarkExplorer() {
           Data: {data.meta.sourceCount} published sources ↓
         </a>
       </header>
-
-      <section className="theme-lab" aria-label="Compare visual themes">
-        <div className="theme-lab-label">
-          <span>Theme lab</span>
-          <small>Compare four directions</small>
-        </div>
-        <div className="theme-options" role="group" aria-label="Visual theme">
-          {THEMES.map((item, index) => (
-            <button
-              key={item.id}
-              type="button"
-              className={theme === item.id ? "active" : ""}
-              aria-pressed={theme === item.id}
-              onClick={() => selectTheme(item.id)}
-            >
-              <i>{String(index + 1).padStart(2, "0")}</i>
-              <span>{item.name}</span>
-              <small>{item.note}</small>
-            </button>
-          ))}
-        </div>
-      </section>
 
       <section className="hero" id="top">
         <div className="eyebrow">
@@ -541,34 +511,38 @@ export function BenchmarkExplorer() {
             <h2>Every benchmark.<br />One field of view.</h2>
             <p>
               Artificial Analysis’s Intelligence Index leads, followed by its component
-              evaluations and three independent software and general-purpose benchmarks.
-              Filters and cost scale apply to the complete gallery.
+              evaluations, its Coding Agent Index, and three independent software and
+              general-purpose benchmarks. Filters and cost scale apply to the complete gallery.
             </p>
           </div>
           <div className="chart-toggles" aria-label="Chart view">
+            <div className="cost-scale-toggle">
+              <span>Cost:</span>
+              <button
+                type="button"
+                className={linearCost ? "" : "active"}
+                onClick={() => {
+                  setLinearCost(false);
+                  setActivePoint(null);
+                }}
+              >
+                Log
+              </button>
+              <i aria-hidden="true" />
+              <button
+                type="button"
+                className={linearCost ? "active" : ""}
+                onClick={() => {
+                  setLinearCost(true);
+                  setActivePoint(null);
+                }}
+              >
+                Linear
+              </button>
+            </div>
             <button
               type="button"
-              className={linearCost ? "" : "active"}
-              onClick={() => {
-                setLinearCost(false);
-                setActivePoint(null);
-              }}
-            >
-              Log cost
-            </button>
-            <button
-              type="button"
-              className={linearCost ? "active" : ""}
-              onClick={() => {
-                setLinearCost(true);
-                setActivePoint(null);
-              }}
-            >
-              Linear
-            </button>
-            <button
-              type="button"
-              className={labels ? "active" : ""}
+              className={`labels-toggle ${labels ? "active" : ""}`}
               onClick={() => {
                 setLabels((value) => !value);
                 setActivePoint(null);
@@ -682,9 +656,9 @@ export function BenchmarkExplorer() {
           <div>
             <h2>Direct from published benchmark data.</h2>
             <p>
-              Artificial Analysis values come from its public graph payload. FrontierCode,
-              DeepSWE, and LiveBench are loaded from their official machine-readable
-              releases, preserving each source’s own score and measured cost definition.
+              Artificial Analysis model values come from its public graph payload, while
+              Coding Agent Index values come from the structured data embedded in its public
+              leaderboard. FrontierCode, DeepSWE, and LiveBench use their official releases.
             </p>
           </div>
           <div>
@@ -692,7 +666,8 @@ export function BenchmarkExplorer() {
             <p>
               Artificial Analysis uses <code> weightedCostPerTask</code>. FrontierCode
               reports average task cost, DeepSWE mean rollout cost, and LiveBench cost per
-              successful task. Axis labels and card notes make those differences explicit.
+              successful task. The Coding Agent Index reports observed pay-per-token API cost
+              per task. Axis labels and card notes make those differences explicit.
             </p>
           </div>
           <div>
@@ -700,8 +675,9 @@ export function BenchmarkExplorer() {
             <p>
               All {data.meta.modelCount} model records and {data.meta.endpointCount} provider
               variants from Artificial Analysis are retained, alongside{" "}
-              {data.meta.externalModelCount} current configurations from the three additional
-              sources. A point appears only where both a score and positive task cost exist.
+              {data.meta.externalModelCount} current benchmark configurations, including{" "}
+              {data.meta.codingAgentModelCount} coding-agent runs. A point appears only where
+              both a score and positive task cost exist.
             </p>
           </div>
           <div className="download-panel">

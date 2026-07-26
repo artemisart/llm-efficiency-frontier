@@ -11,17 +11,17 @@ export async function generateMetadata(): Promise<Metadata> {
   return {
     title: "Model Economics — AI benchmark performance vs. cost",
     description:
-      "Compare four visual directions for model performance versus measured task cost across 13 benchmarks.",
+      "Compare model performance against measured task cost across 14 benchmarks in a focused analytical interface.",
     openGraph: {
       title: "Model Economics",
-      description: "13 benchmarks · 4 sources · performance × cost",
-      images: [`${origin}/og-themes.png`],
+      description: "14 benchmarks · 4 sources · performance × cost",
+      images: [`${origin}/og-analytical.png`],
     },
     twitter: {
       card: "summary_large_image",
       title: "Model Economics",
-      description: "13 benchmarks · 4 sources · performance × cost",
-      images: [`${origin}/og-themes.png`],
+      description: "14 benchmarks · 4 sources · performance × cost",
+      images: [`${origin}/og-analytical.png`],
     },
   };
 }
