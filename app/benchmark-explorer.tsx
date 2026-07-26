@@ -34,6 +34,9 @@ type Benchmark = {
   scoreSuffix: string;
   description: string;
   costNote: string;
+  costAxisLabel: string;
+  sourceUrl: string;
+  sourceLabel: string;
   modelsWithData: number;
 };
 
@@ -44,6 +47,8 @@ type DataShape = {
     modelCount: number;
     endpointCount: number;
     graphDatasetCount: number;
+    externalModelCount: number;
+    sourceCount: number;
     citation: string;
     license: string;
   };
@@ -95,24 +100,6 @@ function roundPosition(value: number) {
   return Math.round(value * 10_000) / 10_000;
 }
 
-function computePareto(models: Model[], benchmarkId: string) {
-  const sorted = [...models].sort(
-    (left, right) =>
-      left.benchmarks[benchmarkId].cost - right.benchmarks[benchmarkId].cost ||
-      right.benchmarks[benchmarkId].score - left.benchmarks[benchmarkId].score,
-  );
-  const frontier = new Set<string>();
-  let bestScore = Number.NEGATIVE_INFINITY;
-  for (const model of sorted) {
-    const value = model.benchmarks[benchmarkId];
-    if (value.score > bestScore) {
-      frontier.add(model.id);
-      bestScore = value.score;
-    }
-  }
-  return frontier;
-}
-
 function effortIdentity(model: Model) {
   const settings = model.name.match(/\(([^()]*)\)\s*$/);
   if (!settings) return null;
@@ -149,10 +136,7 @@ function createChartView(models: Model[], benchmarkId: string, linearCost: boole
   const xMin = linearCost ? costMin : Math.log10(costMin);
   const xMax = linearCost ? costMax : Math.log10(costMax);
   const yPadding = Math.max((scoreMax - scoreMin) * 0.09, 1);
-  const yMin =
-    benchmarkId === "aa-omniscience"
-      ? scoreMin - yPadding
-      : Math.max(0, scoreMin - yPadding);
+  const yMin = Math.max(0, scoreMin - yPadding);
   const yMax = scoreMax + yPadding;
 
   return {
@@ -202,6 +186,7 @@ function createEffortLinks(
       const previous = ordered[index];
       return {
         key: `${key}:${previous.model.id}:${current.model.id}`,
+        groupKey: key,
         x1: view.x(previous.model),
         y1: view.y(previous.model),
         x2: view.x(current.model),
@@ -223,8 +208,11 @@ function BenchmarkChart({
 }: ChartProps) {
   const plotted = models.filter((model) => model.benchmarks[benchmark.id]);
   const view = createChartView(plotted, benchmark.id, linearCost);
-  const pareto = computePareto(plotted, benchmark.id);
   const effortLinks = createEffortLinks(plotted, benchmark.id, view);
+  const activeModel = plotted.find(
+    (model) => activePoint === `${benchmark.id}:${model.id}`,
+  );
+  const activeEffortKey = activeModel ? effortIdentity(activeModel)?.key : null;
   const xTicks = Array.from({ length: 5 }, (_, index) => {
     const ratio = index / 4;
     const axisValue = view.xMin + (view.xMax - view.xMin) * ratio;
@@ -246,9 +234,17 @@ function BenchmarkChart({
     <article className={`gallery-card ${featured ? "featured" : ""}`}>
       <div className="gallery-card-heading">
         <div>
-          <p>Performance vs. weighted task cost</p>
+          <p>Performance vs. cost</p>
           <h3>{benchmark.label}</h3>
         </div>
+        <a
+          className="benchmark-source"
+          href={benchmark.sourceUrl}
+          target="_blank"
+          rel="noreferrer"
+        >
+          {benchmark.sourceLabel} ↗
+        </a>
       </div>
       <p className="gallery-card-description">{benchmark.description}</p>
 
@@ -267,8 +263,8 @@ function BenchmarkChart({
             onMouseLeave={() => setActivePoint(null)}
             onClick={() => setActivePoint(null)}
           >
-            <div className="chart-attractive-zone" aria-hidden="true">
-              <span>Attractive region ↖</span>
+            <div className="chart-better-zone" aria-hidden="true">
+              <span>Better ↖</span>
             </div>
             {xTicks.map((tick) => (
               <i
@@ -293,6 +289,7 @@ function BenchmarkChart({
               {effortLinks.map((link) => (
                 <line
                   key={link.key}
+                  className={link.groupKey === activeEffortKey ? "active" : ""}
                   x1={link.x1}
                   y1={link.y1}
                   x2={link.x2}
@@ -311,9 +308,7 @@ function BenchmarkChart({
                 <button
                   key={model.id}
                   type="button"
-                  className={`point ${pareto.has(model.id) ? "pareto" : ""} ${
-                    isActive ? "selected" : ""
-                  }`}
+                  className={`point ${isActive ? "selected" : ""}`}
                   style={{
                     left: `${x}%`,
                     top: `${y}%`,
@@ -346,7 +341,6 @@ function BenchmarkChart({
                       <small>{model.creator.name}</small>
                       <b>{score(value.score, benchmark.scoreSuffix)}</b>
                       <em>{money(value.cost)} / task</em>
-                      {pareto.has(model.id) && <mark>Pareto efficient</mark>}
                     </span>
                   )}
                 </button>
@@ -360,7 +354,7 @@ function BenchmarkChart({
               </span>
             ))}
           </div>
-          <span className="x-axis-title">Weighted cost per task (USD) →</span>
+          <span className="x-axis-title">{benchmark.costAxisLabel} →</span>
         </div>
       ) : (
         <div className="empty-state">
@@ -442,18 +436,16 @@ export function BenchmarkExplorer() {
         </nav>
         <a
           className="header-source"
-          href="https://artificialanalysis.ai/"
-          target="_blank"
-          rel="noreferrer"
+          href="#method"
         >
-          Data: Artificial Analysis ↗
+          Data: {data.meta.sourceCount} published sources ↓
         </a>
       </header>
 
       <section className="hero" id="top">
         <div className="eyebrow">
           <span className="live-dot" />
-          Snapshot extracted {new Date(data.meta.extractedAt).toLocaleDateString("en-GB", {
+          Data refreshed {new Date(data.meta.extractedAt).toLocaleDateString("en-GB", {
             day: "2-digit",
             month: "short",
             year: "numeric",
@@ -467,20 +459,6 @@ export function BenchmarkExplorer() {
           Every evaluated model, unpacked benchmark by benchmark. Move left for lower
           cost. Move up for better performance.
         </p>
-        <div className="hero-stats" aria-label="Dataset summary">
-          <div>
-            <strong>{data.meta.modelCount}</strong>
-            <span>Model records</span>
-          </div>
-          <div>
-            <strong>{data.meta.endpointCount}</strong>
-            <span>Provider endpoints</span>
-          </div>
-          <div>
-            <strong>{data.benchmarks.length}</strong>
-            <span>Cost-matched benchmarks</span>
-          </div>
-        </div>
       </section>
 
       <section className="explorer-section" id="explorer">
@@ -493,7 +471,8 @@ export function BenchmarkExplorer() {
           <div>
             <h2>Every benchmark.<br />One field of view.</h2>
             <p>
-              The Intelligence Index leads, followed by every component evaluation.
+              Artificial Analysis’s Intelligence Index leads, followed by its component
+              evaluations and three independent software and general-purpose benchmarks.
               Filters and cost scale apply to the complete gallery.
             </p>
           </div>
@@ -600,10 +579,7 @@ export function BenchmarkExplorer() {
 
         <div className="gallery-key" aria-label="Chart legend">
           <span>
-            <i className="legend-dot pareto-dot" /> Pareto frontier
-          </span>
-          <span>
-            <i className="legend-dot" /> Other evaluated model
+            <i className="legend-dot" /> Evaluated model
           </span>
           <span>
             <i className="legend-link" /> Same model, different effort
@@ -635,33 +611,33 @@ export function BenchmarkExplorer() {
         </div>
         <div className="method-grid">
           <div>
-            <h2>Direct from the graph payload.</h2>
+            <h2>Direct from published benchmark data.</h2>
             <p>
-              The snapshot follows Artificial Analysis’s own homepage request manifest,
-              decrypts the public all-model payload with the same browser-side method,
-              and pairs each benchmark score with its corresponding weighted cost-per-task
-              value.
+              Artificial Analysis values come from its public graph payload. FrontierCode,
+              DeepSWE, and LiveBench are loaded from their official machine-readable
+              releases, preserving each source’s own score and measured cost definition.
             </p>
           </div>
           <div>
             <h3>What “cost” means</h3>
             <p>
-              For each of the nine component evaluations, the x-axis uses
-              <code> weightedCostPerTask</code>. The aggregate chart uses the total weighted
-              average cost per Intelligence Index task.
+              Artificial Analysis uses <code> weightedCostPerTask</code>. FrontierCode
+              reports average task cost, DeepSWE mean rollout cost, and LiveBench cost per
+              successful task. Axis labels and card notes make those differences explicit.
             </p>
           </div>
           <div>
             <h3>Coverage</h3>
             <p>
               All {data.meta.modelCount} model records and {data.meta.endpointCount} provider
-              variants are retained in the downloadable snapshot. A point appears only where
-              both a score and positive task cost exist.
+              variants from Artificial Analysis are retained, alongside{" "}
+              {data.meta.externalModelCount} current configurations from the three additional
+              sources. A point appears only where both a score and positive task cost exist.
             </p>
           </div>
           <div className="download-panel">
-            <span>Full extracted snapshot</span>
-            <strong>Models, endpoints & 21 rendered graphs</strong>
+            <span>Artificial Analysis source snapshot</span>
+            <strong>Models, endpoints & extracted graph data</strong>
             <a href="/data/artificial-analysis-full.json" download>
               Download JSON ↓
             </a>
@@ -674,6 +650,15 @@ export function BenchmarkExplorer() {
           </a>
           <a href={data.meta.source} target="_blank" rel="noreferrer">
             Artificial Analysis ↗
+          </a>
+          <a href="https://cognition.com/frontiercode" target="_blank" rel="noreferrer">
+            FrontierCode ↗
+          </a>
+          <a href="https://deepswe.datacurve.ai/" target="_blank" rel="noreferrer">
+            DeepSWE ↗
+          </a>
+          <a href="https://livebench.ai/" target="_blank" rel="noreferrer">
+            LiveBench ↗
           </a>
         </div>
       </section>

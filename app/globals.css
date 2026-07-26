@@ -122,11 +122,11 @@ select:focus-visible {
 }
 
 .hero {
-  min-height: 590px;
+  min-height: 530px;
   padding: 68px 5vw 54px;
   display: grid;
   grid-template-columns: minmax(0, 1.55fr) minmax(300px, 0.65fr);
-  grid-template-rows: auto 1fr auto;
+  grid-template-rows: auto 1fr;
   column-gap: 7vw;
   border-bottom: 1px solid var(--ink);
   background:
@@ -164,7 +164,7 @@ select:focus-visible {
   min-width: 0;
   align-self: center;
   margin: 34px 0 20px;
-  font-size: clamp(70px, 8vw, 142px);
+  font-size: clamp(70px, 7vw, 128px);
   line-height: 0.82;
   letter-spacing: -0.072em;
   font-weight: 900;
@@ -192,39 +192,6 @@ select:focus-visible {
   font-family: Georgia, "Times New Roman", serif;
   font-size: clamp(22px, 2.1vw, 32px);
   line-height: 1.18;
-}
-
-.hero-stats {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  border-top: 1px solid var(--ink);
-  border-bottom: 1px solid var(--ink);
-}
-
-.hero-stats div {
-  display: flex;
-  align-items: baseline;
-  gap: 12px;
-  padding: 18px 16px 16px 0;
-}
-
-.hero-stats div + div {
-  padding-left: 24px;
-  border-left: 1px solid var(--ink);
-}
-
-.hero-stats strong {
-  font-size: 30px;
-  letter-spacing: -0.04em;
-}
-
-.hero-stats span {
-  color: var(--muted);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .explorer-section {
@@ -437,6 +404,29 @@ select:focus-visible {
   letter-spacing: -0.03em;
 }
 
+.benchmark-source {
+  flex: 0 0 auto;
+  margin-top: 2px;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  transition:
+    border-color 150ms ease,
+    color 150ms ease,
+    background 150ms ease;
+}
+
+.benchmark-source:hover {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
 .gallery-card-description {
   min-height: 42px;
   max-width: 720px;
@@ -470,20 +460,19 @@ select:focus-visible {
   height: 500px;
 }
 
-.chart-attractive-zone {
+.chart-better-zone {
   position: absolute;
   z-index: 0;
   top: 0;
   left: 0;
   width: 50%;
   height: 50%;
-  border-right: 1px dashed rgba(57, 108, 50, 0.55);
-  border-bottom: 1px dashed rgba(57, 108, 50, 0.55);
   background: rgba(114, 179, 91, 0.17);
+  clip-path: polygon(0 0, 100% 0, 0 100%);
   pointer-events: none;
 }
 
-.chart-attractive-zone span {
+.chart-better-zone span {
   position: absolute;
   top: 10px;
   left: 11px;
@@ -528,6 +517,16 @@ select:focus-visible {
   stroke: rgba(23, 24, 20, 0.42);
   stroke-width: 1.5;
   stroke-linecap: round;
+  transition:
+    stroke 120ms ease,
+    stroke-width 120ms ease,
+    opacity 120ms ease;
+}
+
+.effort-links line.active {
+  stroke: var(--coral);
+  stroke-width: 3;
+  opacity: 1;
 }
 
 .point {
@@ -559,13 +558,6 @@ select:focus-visible {
   height: 15px;
   border: 2px solid var(--ink);
   box-shadow: 0 0 0 4px var(--white);
-}
-
-.point.pareto {
-  border: 2px solid var(--ink);
-  box-shadow:
-    0 0 0 3px var(--white),
-    0 0 0 4px var(--ink);
 }
 
 .point-label {
@@ -637,18 +629,6 @@ select:focus-visible {
   font-size: 11px;
 }
 
-.tooltip mark {
-  width: fit-content;
-  margin-top: 7px;
-  padding: 3px 5px;
-  background: var(--coral);
-  color: var(--ink);
-  font-size: 8px;
-  font-weight: 900;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
 .x-ticks {
   position: relative;
   height: 30px;
@@ -709,11 +689,6 @@ select:focus-visible {
   display: inline-block;
   border-radius: 50%;
   background: #918e84;
-}
-
-.pareto-dot {
-  background: var(--coral);
-  box-shadow: 0 0 0 2px var(--ink);
 }
 
 .legend-link {
@@ -947,16 +922,6 @@ select:focus-visible {
     font-size: 22px;
   }
 
-  .hero-stats {
-    grid-template-columns: 1fr;
-  }
-
-  .hero-stats div + div {
-    padding-left: 0;
-    border-top: 1px solid var(--ink);
-    border-left: 0;
-  }
-
   .explorer-section {
     padding: 38px 16px 54px;
   }
@@ -967,6 +932,10 @@ select:focus-visible {
 
   .gallery-heading h2 {
     font-size: clamp(42px, 13vw, 68px);
+  }
+
+  .gallery-card-heading {
+    flex-direction: column;
   }
 
   .controls {
