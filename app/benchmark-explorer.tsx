@@ -789,23 +789,6 @@ export function BenchmarkExplorer() {
 
   return (
     <main className="analytical-theme">
-      <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="LLM Efficiency Frontier home">
-          <span>LEF</span>
-          <strong>LLM Efficiency Frontier</strong>
-        </a>
-        <nav aria-label="Page navigation">
-          <a href="#explorer">Explorer</a>
-          <a href="#method">Method</a>
-        </nav>
-        <a
-          className="header-source"
-          href="#method"
-        >
-          Data: {data.meta.sourceCount} published sources ↓
-        </a>
-      </header>
-
       <section className="hero" id="top">
         <div className="eyebrow">
           <span className="live-dot" />

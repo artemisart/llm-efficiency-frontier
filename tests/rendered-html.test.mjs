@@ -62,11 +62,9 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
   assert.match(component, /labIdentity/);
   assert.match(component, /matchesModelQuery/);
   assert.doesNotMatch(component, /chooseTooltipPlacement/);
+  assert.doesNotMatch(component, /className="site-header"/);
   assert.match(packageJson, /"d3-force":/);
-  assert.match(
-    css,
-    /\.site-header\s*\{[^}]*position:\s*relative/s,
-  );
+  assert.doesNotMatch(css, /\.site-header\s*\{/);
   assert.match(
     css,
     /\.chart-toolbar\s*\{[^}]*position:\s*sticky/s,

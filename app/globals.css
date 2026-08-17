@@ -51,74 +51,6 @@ select:focus-visible {
   outline-offset: 3px;
 }
 
-.site-header {
-  position: relative;
-  z-index: 100;
-  min-height: 72px;
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  padding: 0 32px;
-  border-bottom: 1px solid var(--ink);
-  background: var(--paper);
-}
-
-.wordmark {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  width: fit-content;
-  text-transform: uppercase;
-  font-size: 12px;
-  letter-spacing: 0.08em;
-}
-
-.wordmark span {
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  background: var(--ink);
-  color: var(--paper);
-  font-weight: 900;
-  letter-spacing: -0.05em;
-}
-
-.site-header nav {
-  display: flex;
-  gap: 30px;
-  font-size: 12px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-}
-
-.site-header nav a,
-.header-source {
-  position: relative;
-}
-
-.site-header nav a::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 100%;
-  bottom: -6px;
-  height: 2px;
-  background: var(--coral);
-  transition: right 180ms ease;
-}
-
-.site-header nav a:hover::after {
-  right: 0;
-}
-
-.header-source {
-  justify-self: end;
-  font-size: 11px;
-  color: var(--muted);
-}
-
 .hero {
   min-height: 530px;
   padding: 68px 5vw 54px;
@@ -1195,14 +1127,6 @@ select:focus-visible {
 }
 
 @media (max-width: 1080px) {
-  .site-header {
-    grid-template-columns: 1fr auto;
-  }
-
-  .site-header nav {
-    display: none;
-  }
-
   .hero {
     grid-template-columns: 1fr;
   }
@@ -1234,16 +1158,6 @@ select:focus-visible {
 }
 
 @media (max-width: 720px) {
-  .site-header {
-    min-height: 60px;
-    padding: 0 16px;
-  }
-
-  .wordmark strong,
-  .header-source {
-    display: none;
-  }
-
   .hero {
     min-height: auto;
     padding: 38px 18px 30px;
@@ -1394,8 +1308,7 @@ select:focus-visible {
     scroll-behavior: auto;
   }
 
-  .point,
-  .site-header nav a::after {
+  .point {
     transition: none;
   }
 }
@@ -1407,15 +1320,6 @@ select:focus-visible {
   background: var(--paper);
   color: var(--ink);
   font-family: Inter, "Helvetica Neue", Helvetica, Arial, sans-serif;
-}
-
-.analytical-theme .site-header {
-  border-color: var(--line);
-  background: rgba(247, 247, 244, 0.92);
-}
-
-.analytical-theme .wordmark span {
-  border-radius: 8px;
 }
 
 .analytical-theme .hero {
