@@ -343,7 +343,7 @@ select:focus-visible {
 }
 
 .size-control {
-  flex: 0 0 160px;
+  flex: 1 1 160px;
 }
 
 .size-range {
@@ -471,7 +471,6 @@ select:focus-visible {
 .search-control,
 .highlight-control {
   flex: 1 1 140px;
-  min-width: 140px;
 }
 
 .check-control {
@@ -1173,21 +1172,6 @@ select:focus-visible {
     gap: 12px;
   }
 
-  .search-control,
-  .highlight-control {
-    flex: 1 0 100%;
-    min-width: 0;
-  }
-
-  .multi-select-control,
-  .size-control {
-    flex-basis: 100%;
-  }
-
-  .multi-select-menu {
-    width: 100%;
-  }
-
   .check-control {
     min-height: 28px;
   }
@@ -1281,6 +1265,12 @@ select:focus-visible {
 
   .source-strip a {
     margin-left: 0;
+  }
+}
+
+@media (max-width: 560px) {
+  .chart-gallery {
+    margin-inline: -16px;
   }
 }
 
