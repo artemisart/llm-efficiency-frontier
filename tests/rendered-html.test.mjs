@@ -3,32 +3,22 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 async function render() {
-  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
-  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}`);
-  const { default: worker } = await import(workerUrl.href);
-
-  return worker.fetch(
-    new Request("http://localhost/", {
-      headers: { accept: "text/html" },
-    }),
-    {
-      ASSETS: {
-        fetch: async () => new Response("Not found", { status: 404 }),
-      },
-    },
-    {
-      waitUntil() {},
-      passThroughOnException() {},
-    },
-  );
+  return readFile(new URL("../out/index.html", import.meta.url), "utf8");
 }
 
-test("server-renders the complete benchmark gallery in the intended order", async () => {
-  const response = await render();
-  assert.equal(response.status, 200);
-  assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
+function pagesBasePath() {
+  if (process.env.PAGES_BASE_PATH !== undefined) return process.env.PAGES_BASE_PATH;
 
-  const html = await response.text();
+  const repositoryName = process.env.GITHUB_REPOSITORY?.split("/")[1] ?? "";
+  return process.env.GITHUB_ACTIONS === "true" &&
+    repositoryName &&
+    !repositoryName.endsWith(".github.io")
+    ? `/${repositoryName}`
+    : "";
+}
+
+test("static export contains the complete benchmark gallery in the intended order", async () => {
+  const html = await render();
   assert.match(html, /<title>LLM Efficiency Frontier/);
   assert.match(html, /class="chart-toolbar"/);
   assert.match(html, /class="filter-control multi-select-control"/);
@@ -40,6 +30,12 @@ test("server-renders the complete benchmark gallery in the intended order", asyn
   assert.match(html, />Performance →</);
   assert.doesNotMatch(html, />Performance vs\. cost</);
   assert.doesNotMatch(html, />Weighted average cost per Intelligence Index task\.</);
+  assert.ok(
+    html.includes(
+      `href="${pagesBasePath()}/data/artificial-analysis-full.json"`,
+    ),
+  );
+  assert.doesNotMatch(html, /sites\.openai\.com/);
 
   const intelligence = html.indexOf("<h3>Intelligence Index</h3>");
   const coding = html.indexOf("<h3>AA Coding Agent Index v1.3</h3>");

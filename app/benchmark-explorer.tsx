@@ -1090,7 +1090,10 @@ export function BenchmarkExplorer() {
           <div className="download-panel">
             <span>Artificial Analysis source snapshot</span>
             <strong>Models, endpoints & extracted graph data</strong>
-            <a href="/data/artificial-analysis-full.json" download>
+            <a
+              href={`${process.env.NEXT_PUBLIC_BASE_PATH ?? ""}/data/artificial-analysis-full.json`}
+              download
+            >
               Download JSON ↓
             </a>
           </div>

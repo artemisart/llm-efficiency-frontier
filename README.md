@@ -1,6 +1,7 @@
 # LLM Efficiency Frontier
 
-A benchmark explorer running on [vinext](https://github.com/cloudflare/vinext).
+An interactive comparison of LLM benchmark performance and measured task cost.
+The site is a static Next.js export designed for GitHub Pages.
 
 ## Prerequisites
 
@@ -9,25 +10,25 @@ A benchmark explorer running on [vinext](https://github.com/cloudflare/vinext).
 ## Quick Start
 
 ```bash
-npm install
-npm run dev
-npm run build
+pnpm install
+pnpm dev
 ```
 
-This starter does not use `wrangler.jsonc`.
-
-## Included Shape
-
-- edit site code under `app/`
-- `.openai/hosting.json` declares optional Sites R2 bindings
-- `vite.config.ts` simulates declared bindings for local development
+Open [http://localhost:3000](http://localhost:3000).
 
 ## Useful Commands
 
-- `npm run dev`: start local development
-- `npm run build`: verify the vinext build output
-- `npm test`: build the starter and verify its rendered loading skeleton
+- `pnpm dev`: start local development
+- `pnpm build`: create the static site in `out/`
+- `pnpm test`: build and verify the exported HTML and benchmark data
+- `pnpm lint`: run ESLint
 
-## Learn More
+## GitHub Pages
 
-- [vinext Documentation](https://github.com/cloudflare/vinext)
+Pushes to `main` deploy through `.github/workflows/deploy-pages.yml`. In the
+repository settings, set **Pages → Build and deployment → Source** to
+**GitHub Actions**.
+
+The build automatically uses the repository name as its base path. Set
+`PAGES_BASE_PATH` to override that behavior, and set `NEXT_PUBLIC_SITE_URL` if
+the site moves to a custom domain.

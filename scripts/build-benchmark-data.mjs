@@ -214,10 +214,18 @@ const compact = {
     citation: "Artificial Analysis (2025). LLM benchmarks dataset.",
     license: "https://artificialanalysis.ai/docs/legal/Terms-of-Use.pdf",
   },
-  benchmarks: benchmarks.map(({ scoreField, costSlug, scale, ...benchmark }) => ({
-    ...benchmark,
-    modelsWithData: normalizedModels.filter((model) => model.benchmarks[benchmark.id]).length,
-  })),
+  benchmarks: benchmarks.map((benchmark) => {
+    const publishedBenchmark = { ...benchmark };
+    delete publishedBenchmark.scoreField;
+    delete publishedBenchmark.costSlug;
+    delete publishedBenchmark.scale;
+
+    return {
+      ...publishedBenchmark,
+      modelsWithData: normalizedModels.filter((model) => model.benchmarks[benchmark.id])
+        .length,
+    };
+  }),
   models: normalizedModels,
   endpointModels,
 };
