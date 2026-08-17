@@ -29,7 +29,7 @@ test("server-renders the complete benchmark gallery in the intended order", asyn
   assert.match(response.headers.get("content-type") ?? "", /^text\/html\b/i);
 
   const html = await response.text();
-  assert.match(html, /<title>Model Economics/);
+  assert.match(html, /<title>LLM Efficiency Frontier/);
   assert.match(html, /class="chart-toolbar"/);
   assert.match(html, /class="filter-control multi-select-control"/);
   assert.match(html, />Known sizes only</);

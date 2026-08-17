@@ -743,9 +743,9 @@ export function BenchmarkExplorer() {
   return (
     <main className="analytical-theme">
       <header className="site-header">
-        <a className="wordmark" href="#top" aria-label="Model Economics home">
-          <span>ME</span>
-          <strong>Model Economics</strong>
+        <a className="wordmark" href="#top" aria-label="LLM Efficiency Frontier home">
+          <span>LEF</span>
+          <strong>LLM Efficiency Frontier</strong>
         </a>
         <nav aria-label="Page navigation">
           <a href="#explorer">Explorer</a>
@@ -768,13 +768,9 @@ export function BenchmarkExplorer() {
             year: "numeric",
           })}
         </div>
-        <h1 aria-label="The price of performance.">
-          <span>The price of</span>
-          <em>performance.</em>
-        </h1>
+        <h1>LLM Efficiency Frontier</h1>
         <p className="hero-copy">
-          Every evaluated model, unpacked benchmark by benchmark. Move left for lower
-          cost. Move up for better performance.
+          Performance is only half the story. This gallery puts benchmark scores and task costs on the same field, so you can see which models deliver more for less. The results come from Artificial Analysis, FrontierCode, DeepSWE, and LiveBench.
         </p>
       </section>
 

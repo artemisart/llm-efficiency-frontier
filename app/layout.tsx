@@ -3,8 +3,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Model Economics",
-    template: "%s · Model Economics",
+    default: "LLM Efficiency Frontier",
+    template: "%s · LLM Efficiency Frontier",
   },
   description:
     "A benchmark-by-benchmark view of AI model performance against weighted task cost.",
