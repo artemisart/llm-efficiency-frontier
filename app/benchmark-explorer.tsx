@@ -7,7 +7,7 @@ import {
   forceY,
   type SimulationNodeDatum,
 } from "d3-force";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import sourceData from "./data/benchmark-data.json";
 
 type BenchmarkValue = {
@@ -69,13 +69,13 @@ type ChartProps = {
   benchmark: Benchmark;
   models: Model[];
   linearCost: boolean;
-  labels: boolean;
+  highlightQuery: string;
   activePoint: string | null;
   setActivePoint: (value: string | null) => void;
   resetFilters: () => void;
 };
 
-const data = sourceData as DataShape;
+const data = sourceData as unknown as DataShape;
 const EFFORT_RANK: Record<string, number> = {
   minimal: 0,
   low: 1,
@@ -86,15 +86,15 @@ const EFFORT_RANK: Record<string, number> = {
 };
 const PLOT_WIDTH = 620;
 const PLOT_HEIGHT = 310;
-const SIZE_RANGES = [
-  { value: "all", label: "Any model size", min: null, max: null },
-  { value: "known", label: "Known sizes only", min: 0, max: Infinity },
-  { value: "under-7", label: "Under 7B", min: 0, max: 7 },
-  { value: "7-30", label: "7B–30B", min: 7, max: 30 },
-  { value: "30-100", label: "30B–100B", min: 30, max: 100 },
-  { value: "100-300", label: "100B–300B", min: 100, max: 300 },
-  { value: "300-plus", label: "300B+", min: 300, max: Infinity },
-] as const;
+const MODEL_SIZE_MIN = 0.1;
+const MODEL_SIZE_MAX = 4096;
+const MODEL_SIZE_LOG_MIN = Math.log10(MODEL_SIZE_MIN);
+const MODEL_SIZE_LOG_MAX = Math.log10(MODEL_SIZE_MAX);
+
+type LabIdentity = {
+  key: string;
+  name: string;
+};
 
 type LabelLayoutNode = SimulationNodeDatum & {
   kind: "label" | "point";
@@ -104,8 +104,6 @@ type LabelLayoutNode = SimulationNodeDatum & {
   radius: number;
   labelWidth?: number;
 };
-
-type TooltipPlacement = "top" | "right" | "bottom" | "left";
 
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
@@ -131,6 +129,78 @@ function formatParameters(value: number) {
   return `${value.toLocaleString("en-US", {
     maximumFractionDigits: value < 10 ? 1 : 0,
   })}B parameters`;
+}
+
+function formatModelSize(value: number) {
+  return `${value.toLocaleString("en-US", {
+    maximumFractionDigits: value < 1 ? 1 : 0,
+  })}B`;
+}
+
+function modelSizeFromLog(value: number) {
+  return 10 ** value;
+}
+
+function modelSizeRatio(value: number) {
+  return (
+    (Math.log10(value) - MODEL_SIZE_LOG_MIN) /
+    (MODEL_SIZE_LOG_MAX - MODEL_SIZE_LOG_MIN)
+  );
+}
+
+function labIdentity(creator: Model["creator"]): LabIdentity {
+  const normalizedName = creator.name.toLowerCase().replace(/[.\s-]/g, "");
+  const normalizedSlug = creator.slug.toLowerCase();
+  if (
+    normalizedName === "alibaba" ||
+    normalizedName === "alibabacloud" ||
+    normalizedSlug === "alibaba" ||
+    normalizedSlug === "alibaba-cloud"
+  ) {
+    return { key: "alibaba", name: "Alibaba" };
+  }
+  if (
+    normalizedName === "zai" ||
+    normalizedSlug === "z-ai" ||
+    normalizedSlug === "zai"
+  ) {
+    return { key: "z-ai", name: "Z AI" };
+  }
+  return { key: creator.slug, name: creator.name };
+}
+
+function modelSearchText(model: Model) {
+  const lab = labIdentity(model.creator);
+  return `${model.name} ${model.shortName} ${model.creator.name} ${lab.name}`.toLowerCase();
+}
+
+function matchesModelQuery(model: Model, query: string) {
+  const normalizedQuery = query.trim().toLowerCase();
+  return Boolean(
+    normalizedQuery && modelSearchText(model).includes(normalizedQuery),
+  );
+}
+
+function isPlottableValue(value: BenchmarkValue | undefined) {
+  return Boolean(
+    value &&
+      Number.isFinite(value.score) &&
+      Number.isFinite(value.cost) &&
+      value.cost > 0,
+  );
+}
+
+function hasPlottableBenchmark(model: Model) {
+  return Object.values(model.benchmarks).some(isPlottableValue);
+}
+
+function paretoLabel(model: Model) {
+  return model.shortName
+    .replace(/\s*\((?:minimal|low|medium|high|xhigh|max)(?:\s+effort)?\)/gi, "")
+    .replace(/\bGPT-/gi, "")
+    .replace(/\bClaude\s+/gi, "")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 }
 
 function roundPosition(value: number) {
@@ -298,9 +368,10 @@ function createParetoLabelLayout(
     .map((model) => {
       const anchorX = (view.x(model) / 100) * PLOT_WIDTH;
       const anchorY = (view.y(model) / 100) * PLOT_HEIGHT;
+      const label = paretoLabel(model);
       const labelWidth = Math.min(
         110,
-        Math.max(38, model.shortName.length * 4.7 + 10),
+        Math.max(38, label.length * 4.7 + 10),
       );
       const placeLeft = anchorX > PLOT_WIDTH * 0.7;
       return {
@@ -371,61 +442,12 @@ function createParetoLabelLayout(
   );
 }
 
-function chooseTooltipPlacement(
-  activeModel: Model | undefined,
-  models: Model[],
-  view: ReturnType<typeof createChartView>,
-): TooltipPlacement {
-  if (!activeModel) return "top";
-  const x = view.x(activeModel);
-  const y = view.y(activeModel);
-  const width = 38;
-  const height = 35;
-  const gap = 4;
-  const points = models
-    .filter((model) => model.id !== activeModel.id)
-    .map((model) => ({ x: view.x(model), y: view.y(model) }));
-  const candidates: Array<{
-    placement: TooltipPlacement;
-    left: number;
-    top: number;
-  }> = [
-    { placement: "top", left: x - width / 2, top: y - height - gap },
-    { placement: "bottom", left: x - width / 2, top: y + gap },
-    { placement: "right", left: x + gap, top: y - height / 2 },
-    { placement: "left", left: x - width - gap, top: y - height / 2 },
-  ];
-
-  return candidates
-    .map((candidate, priority) => {
-      const right = candidate.left + width;
-      const bottom = candidate.top + height;
-      const hiddenPoints = points.filter(
-        (point) =>
-          point.x >= candidate.left &&
-          point.x <= right &&
-          point.y >= candidate.top &&
-          point.y <= bottom,
-      ).length;
-      const overflow =
-        Math.max(0, -candidate.left) +
-        Math.max(0, right - 100) +
-        Math.max(0, -candidate.top) +
-        Math.max(0, bottom - 100);
-      return {
-        ...candidate,
-        score: hiddenPoints * 100 + overflow * 8 + priority * 0.01,
-      };
-    })
-    .sort((left, right) => left.score - right.score)[0].placement;
-}
-
 function BenchmarkChart({
   benchmark,
   models,
   linearCost,
-  labels,
   activePoint,
+  highlightQuery,
   setActivePoint,
   resetFilters,
 }: ChartProps) {
@@ -436,7 +458,9 @@ function BenchmarkChart({
     paretoLabels,
     paretoLabelLayout,
   } = useMemo(() => {
-    const nextPlotted = models.filter((model) => model.benchmarks[benchmark.id]);
+    const nextPlotted = models.filter((model) =>
+      isPlottableValue(model.benchmarks[benchmark.id]),
+    );
     const nextView = createChartView(nextPlotted, benchmark.id, linearCost);
     const nextParetoLabels = computeParetoLabels(nextPlotted, benchmark.id);
     return {
@@ -458,8 +482,10 @@ function BenchmarkChart({
   const activeEffortHasLine = effortLinks.some(
     (link) => link.groupKey === activeEffortKey,
   );
-  const activeProviderSlug = activeModel?.creator.slug ?? null;
-  const tooltipPlacement = chooseTooltipPlacement(activeModel, plotted, view);
+  const activeProviderKey = activeModel
+    ? labIdentity(activeModel.creator).key
+    : null;
+  const hasHighlight = Boolean(highlightQuery.trim());
   const xTicks = Array.from({ length: 5 }, (_, index) => {
     const ratio = index / 4;
     const axisValue = view.xMin + (view.xMax - view.xMin) * ratio;
@@ -493,7 +519,35 @@ function BenchmarkChart({
       <p className="gallery-card-description">{benchmark.description}</p>
 
       {plotted.length ? (
-        <div className="plot-shell">
+        <div
+          className="plot-shell"
+          onMouseLeave={() => setActivePoint(null)}
+        >
+          <div className="point-info" aria-live="polite">
+            {activeModel ? (
+              <>
+                <div className="point-info-model">
+                  <strong>{activeModel.name}</strong>
+                  <small>
+                    {labIdentity(activeModel.creator).name}
+                    {Number.isFinite(activeModel.parameters)
+                      ? ` · ${formatParameters(activeModel.parameters!)}`
+                      : ""}
+                  </small>
+                </div>
+                <div className="point-info-metric">
+                  <span>Performance</span>
+                  <b>{score(activeModel.benchmarks[benchmark.id].score, benchmark.scoreSuffix)}</b>
+                </div>
+                <div className="point-info-metric">
+                  <span>Cost / task</span>
+                  <b>{money(activeModel.benchmarks[benchmark.id].cost)}</b>
+                </div>
+              </>
+            ) : (
+              <span className="point-info-empty">Hover a point to inspect its performance and cost</span>
+            )}
+          </div>
           <span className="y-axis-title">Performance →</span>
           <div className="y-ticks" aria-hidden="true">
             {yTicks.map((tick) => (
@@ -503,8 +557,9 @@ function BenchmarkChart({
             ))}
           </div>
           <div
-            className={`plot-area ${activeModel ? "has-active-point" : ""}`}
-            onMouseLeave={() => setActivePoint(null)}
+            className={`plot-area ${activeModel ? "has-active-point" : ""} ${
+              hasHighlight ? "has-highlight" : ""
+            }`}
             onClick={() => setActivePoint(null)}
           >
             <div className="chart-better-zone" aria-hidden="true">
@@ -552,15 +607,22 @@ function BenchmarkChart({
               const isEffortPeer =
                 activeEffortHasLine && modelEffort?.key === activeEffortKey;
               const isProviderPeer =
-                activeProviderSlug !== null &&
-                model.creator.slug === activeProviderSlug;
+                activeProviderKey !== null &&
+                labIdentity(model.creator).key === activeProviderKey;
+              const isHighlighted = matchesModelQuery(model, highlightQuery);
               return (
                 <button
                   key={model.id}
                   type="button"
                   className={`point ${isActive ? "selected" : ""} ${
                     isProviderPeer ? "provider-peer" : "provider-muted"
-                  } ${isEffortPeer ? "effort-peer" : ""}`}
+                  } ${isEffortPeer ? "effort-peer" : ""} ${
+                    hasHighlight
+                      ? isHighlighted
+                        ? "highlighted"
+                        : "highlight-muted"
+                      : ""
+                  }`}
                   style={{
                     left: `${x}%`,
                     top: `${y}%`,
@@ -578,13 +640,6 @@ function BenchmarkChart({
                     setActivePoint(pointId);
                   }}
                 >
-                  {labels && (
-                    <span
-                      className={`point-label ${x > 74 ? "align-right" : ""}`}
-                    >
-                      {model.shortName}
-                    </span>
-                  )}
                   {isEffortPeer && modelEffort && (
                     <span
                       className={`effort-level-label ${
@@ -594,50 +649,35 @@ function BenchmarkChart({
                       {modelEffort.label}
                     </span>
                   )}
-                  {isActive && (
-                    <span
-                      className={`tooltip tooltip-${tooltipPlacement} ${
-                        x < 18 ? "edge-left" : ""
-                      } ${x > 82 ? "edge-right" : ""} ${
-                        y < 22 ? "edge-top" : ""
-                      } ${y > 78 ? "edge-bottom" : ""}`}
-                    >
-                      <strong>{model.name}</strong>
-                      <small>
-                        {model.creator.name}
-                        {Number.isFinite(model.parameters)
-                          ? ` · ${formatParameters(model.parameters!)}`
-                          : ""}
-                      </small>
-                      <b>{score(value.score, benchmark.scoreSuffix)}</b>
-                      <em>{money(value.cost)} / task</em>
-                    </span>
-                  )}
                 </button>
               );
             })}
-            {!labels && (
-              <div className="pareto-label-layer" aria-hidden="true">
-                {plotted
-                  .filter((model) => paretoLabels.has(model.id))
-                  .map((model) => {
-                    const position = paretoLabelLayout.get(model.id);
-                    if (!position) return null;
-                    return (
-                      <span
-                        key={model.id}
-                        className="point-label frontier-label"
-                        style={{
-                          left: `${position.left}%`,
-                          top: `${position.top}%`,
-                        }}
-                      >
-                        {model.shortName}
-                      </span>
-                    );
-                  })}
-              </div>
-            )}
+            <div className="pareto-label-layer" aria-hidden="true">
+              {plotted
+                .filter((model) => paretoLabels.has(model.id))
+                .map((model) => {
+                  const position = paretoLabelLayout.get(model.id);
+                  if (!position) return null;
+                  return (
+                    <span
+                      key={model.id}
+                      className={`point-label frontier-label ${
+                        hasHighlight
+                          ? matchesModelQuery(model, highlightQuery)
+                            ? "highlighted"
+                            : "highlight-muted"
+                          : ""
+                      }`}
+                      style={{
+                        left: `${position.left}%`,
+                        top: `${position.top}%`,
+                      }}
+                    >
+                      {paretoLabel(model)}
+                    </span>
+                  );
+                })}
+            </div>
           </div>
           <div className="x-ticks" aria-hidden="true">
             {xTicks.map((tick) => (
@@ -667,56 +707,51 @@ function BenchmarkChart({
 
 export function BenchmarkExplorer() {
   const [query, setQuery] = useState("");
+  const [highlightQuery, setHighlightQuery] = useState("");
   const [selectedCreators, setSelectedCreators] = useState<string[]>([]);
-  const [sizeRange, setSizeRange] = useState("all");
+  const [sizeMin, setSizeMin] = useState(MODEL_SIZE_MIN);
+  const [sizeMax, setSizeMax] = useState(MODEL_SIZE_MAX);
   const [reasoningOnly, setReasoningOnly] = useState(false);
   const [openWeightsOnly, setOpenWeightsOnly] = useState(false);
   const [includeDeprecated, setIncludeDeprecated] = useState(true);
   const [linearCost, setLinearCost] = useState(false);
-  const [labels, setLabels] = useState(false);
   const [activePoint, setActivePoint] = useState<string | null>(null);
 
   const creators = useMemo(() => {
-    const map = new Map<string, { slug: string; name: string }>();
-    for (const model of data.models) {
-      map.set(model.creator.slug, {
-        slug: model.creator.slug,
-        name: model.creator.name,
-      });
+    const map = new Map<string, LabIdentity>();
+    for (const model of data.models.filter(hasPlottableBenchmark)) {
+      const lab = labIdentity(model.creator);
+      map.set(lab.key, lab);
     }
     return [...map.values()].sort((left, right) => left.name.localeCompare(right.name));
   }, []);
 
   const filteredModels = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
-    const selectedSizeRange = SIZE_RANGES.find(
-      (range) => range.value === sizeRange,
-    );
     return data.models.filter((model) => {
+      if (!hasPlottableBenchmark(model)) return false;
       if (!includeDeprecated && model.deprecated) return false;
       if (
         selectedCreators.length &&
-        !selectedCreators.includes(model.creator.slug)
+        !selectedCreators.includes(labIdentity(model.creator).key)
       ) {
         return false;
       }
-      if (selectedSizeRange?.value !== "all") {
-        if (!Number.isFinite(model.parameters)) return false;
+      if (
+        sizeMin > MODEL_SIZE_MIN ||
+        sizeMax < MODEL_SIZE_MAX
+      ) {
         if (
-          model.parameters! < (selectedSizeRange?.min ?? 0) ||
-          model.parameters! >= (selectedSizeRange?.max ?? Infinity)
+          !Number.isFinite(model.parameters) ||
+          model.parameters! < sizeMin ||
+          model.parameters! > sizeMax
         ) {
           return false;
         }
       }
       if (reasoningOnly && !model.reasoning) return false;
       if (openWeightsOnly && !model.openWeights) return false;
-      if (
-        normalizedQuery &&
-        !`${model.name} ${model.shortName} ${model.creator.name}`
-          .toLowerCase()
-          .includes(normalizedQuery)
-      ) {
+      if (normalizedQuery && !modelSearchText(model).includes(normalizedQuery)) {
         return false;
       }
       return true;
@@ -727,13 +762,16 @@ export function BenchmarkExplorer() {
     query,
     reasoningOnly,
     selectedCreators,
-    sizeRange,
+    sizeMax,
+    sizeMin,
   ]);
 
   function resetFilters() {
     setQuery("");
+    setHighlightQuery("");
     setSelectedCreators([]);
-    setSizeRange("all");
+    setSizeMin(MODEL_SIZE_MIN);
+    setSizeMax(MODEL_SIZE_MAX);
     setReasoningOnly(false);
     setOpenWeightsOnly(false);
     setIncludeDeprecated(true);
@@ -793,11 +831,22 @@ export function BenchmarkExplorer() {
 
         <div className="controls">
           <label className="search-control">
-            <span>Search</span>
+            <span>Filter</span>
             <input
               value={query}
               onChange={(event) => {
                 setQuery(event.target.value);
+                setActivePoint(null);
+              }}
+              placeholder="Model or lab"
+            />
+          </label>
+          <label className="highlight-control">
+            <span>Highlight</span>
+            <input
+              value={highlightQuery}
+              onChange={(event) => {
+                setHighlightQuery(event.target.value);
                 setActivePoint(null);
               }}
               placeholder="Model or lab"
@@ -811,7 +860,7 @@ export function BenchmarkExplorer() {
                   ? "All labs"
                   : selectedCreators.length === 1
                     ? creators.find(
-                        (item) => item.slug === selectedCreators[0],
+                        (item) => item.key === selectedCreators[0],
                       )?.name ?? "1 lab selected"
                     : `${selectedCreators.length} labs selected`}
               </summary>
@@ -829,15 +878,15 @@ export function BenchmarkExplorer() {
                   </button>
                 </div>
                 {creators.map((item) => (
-                  <label key={item.slug}>
+                  <label key={item.key}>
                     <input
                       type="checkbox"
-                      checked={selectedCreators.includes(item.slug)}
+                      checked={selectedCreators.includes(item.key)}
                       onChange={(event) => {
                         setSelectedCreators((current) =>
                           event.target.checked
-                            ? [...current, item.slug]
-                            : current.filter((slug) => slug !== item.slug),
+                            ? [...current, item.key]
+                            : current.filter((key) => key !== item.key),
                         );
                         setActivePoint(null);
                       }}
@@ -850,19 +899,61 @@ export function BenchmarkExplorer() {
           </div>
           <label className="size-control">
             <span>Model size</span>
-            <select
-              value={sizeRange}
-              onChange={(event) => {
-                setSizeRange(event.target.value);
-                setActivePoint(null);
-              }}
-            >
-              {SIZE_RANGES.map((range) => (
-                <option key={range.value} value={range.value}>
-                  {range.label}
-                </option>
-              ))}
-            </select>
+            <div className="size-range">
+              <output>
+                {sizeMin === MODEL_SIZE_MIN && sizeMax === MODEL_SIZE_MAX
+                  ? "Any size"
+                  : `${formatModelSize(sizeMin)} – ${formatModelSize(sizeMax)}`}
+              </output>
+              <div
+                className="size-range-inputs"
+                style={
+                  {
+                    "--size-min-position": `${modelSizeRatio(sizeMin) * 100}%`,
+                    "--size-max-position": `${modelSizeRatio(sizeMax) * 100}%`,
+                  } as CSSProperties
+                }
+              >
+                <span className="size-range-track" aria-hidden="true" />
+                <span className="size-range-selection" aria-hidden="true" />
+                <input
+                  className="size-range-handle min"
+                  type="range"
+                  min={MODEL_SIZE_LOG_MIN}
+                  max={MODEL_SIZE_LOG_MAX}
+                  step="0.01"
+                  value={Math.log10(sizeMin)}
+                  aria-label="Minimum model size in billions of parameters"
+                  onChange={(event) => {
+                    setSizeMin(
+                      Math.min(
+                        modelSizeFromLog(Number(event.target.value)),
+                        sizeMax,
+                      ),
+                    );
+                    setActivePoint(null);
+                  }}
+                />
+                <input
+                  className="size-range-handle max"
+                  type="range"
+                  min={MODEL_SIZE_LOG_MIN}
+                  max={MODEL_SIZE_LOG_MAX}
+                  step="0.01"
+                  value={Math.log10(sizeMax)}
+                  aria-label="Maximum model size in billions of parameters"
+                  onChange={(event) => {
+                    setSizeMax(
+                      Math.max(
+                        modelSizeFromLog(Number(event.target.value)),
+                        sizeMin,
+                      ),
+                    );
+                    setActivePoint(null);
+                  }}
+                />
+              </div>
+            </div>
           </label>
           <label className="check-control">
             <input
@@ -917,7 +1008,6 @@ export function BenchmarkExplorer() {
               >
                 Log
               </button>
-              <i aria-hidden="true" />
               <button
                 type="button"
                 className={linearCost ? "active" : ""}
@@ -929,26 +1019,11 @@ export function BenchmarkExplorer() {
                 Linear
               </button>
             </div>
-            <button
-              type="button"
-              className={`labels-toggle ${labels ? "active" : ""}`}
-              onClick={() => {
-                setLabels((value) => !value);
-                setActivePoint(null);
-              }}
-            >
-              Labels
-            </button>
           </div>
         </div>
 
-        <div className="gallery-key" aria-label="Chart legend">
-          <span>
-            <i className="legend-dot" /> Evaluated model
-          </span>
-          <span>
-            <i className="legend-link" /> Same model, different effort
-          </span>
+        <div className="gallery-status">
+          <span>Frontier labels show the strongest score at each cost level.</span>
           <strong>{filteredModels.length} matching model records</strong>
         </div>
 
@@ -959,7 +1034,7 @@ export function BenchmarkExplorer() {
               benchmark={benchmark}
               models={filteredModels}
               linearCost={linearCost}
-              labels={labels}
+              highlightQuery={highlightQuery}
               activePoint={activePoint}
               setActivePoint={setActivePoint}
               resetFilters={resetFilters}

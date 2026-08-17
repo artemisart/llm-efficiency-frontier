@@ -32,7 +32,11 @@ test("server-renders the complete benchmark gallery in the intended order", asyn
   assert.match(html, /<title>LLM Efficiency Frontier/);
   assert.match(html, /class="chart-toolbar"/);
   assert.match(html, /class="filter-control multi-select-control"/);
-  assert.match(html, />Known sizes only</);
+  assert.match(html, />Filter</);
+  assert.match(html, />Highlight</);
+  assert.match(html, /type="range"/);
+  assert.match(html, /LLM Efficiency Frontier/);
+  assert.doesNotMatch(html, />AI21 Labs</);
   assert.match(html, />Performance →</);
   assert.doesNotMatch(html, />Performance vs\. cost</);
   assert.doesNotMatch(html, />Weighted average cost per Intelligence Index task\.</);
@@ -45,7 +49,7 @@ test("server-renders the complete benchmark gallery in the intended order", asyn
   assert.ok(gdpval > coding);
 });
 
-test("ships collision-aware labels, adaptive tooltips, and refreshed FrontierCode data", async () => {
+test("ships collision-aware frontier labels, point info, and refreshed FrontierCode data", async () => {
   const [component, css, packageJson, datasetText] = await Promise.all([
     readFile(new URL("../app/benchmark-explorer.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/globals.css", import.meta.url), "utf8"),
@@ -56,7 +60,12 @@ test("ships collision-aware labels, adaptive tooltips, and refreshed FrontierCod
 
   assert.match(component, /from "d3-force"/);
   assert.match(component, /createParetoLabelLayout/);
-  assert.match(component, /chooseTooltipPlacement/);
+  assert.match(component, /className="point-info"/);
+  assert.match(component, /isPlottableValue/);
+  assert.match(component, /className=\{`effort-level-label/);
+  assert.match(component, /labIdentity/);
+  assert.match(component, /matchesModelQuery/);
+  assert.doesNotMatch(component, /chooseTooltipPlacement/);
   assert.match(packageJson, /"d3-force":/);
   assert.match(
     css,
@@ -79,4 +88,9 @@ test("ships collision-aware labels, adaptive tooltips, and refreshed FrontierCod
     dataset.models.filter((model) => Number.isFinite(model.parameters)).length >= 374,
   );
   assert.match(css, /\.chart-better-zone\s*\{[^}]*width:\s*25%[^}]*height:\s*25%/s);
+  assert.match(css, /\.point-info\s*\{/);
+  assert.match(css, /\.size-range-selection\s*\{/);
+  assert.match(css, /\.highlight-control\s*\{/);
+  assert.doesNotMatch(css, /\.cost-scale-toggle > i\s*\{/);
+  assert.doesNotMatch(css, /\.tooltip\s*\{/);
 });
