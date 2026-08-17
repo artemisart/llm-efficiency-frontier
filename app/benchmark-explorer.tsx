@@ -7,7 +7,14 @@ import {
   forceY,
   type SimulationNodeDatum,
 } from "d3-force";
-import { useMemo, useState, type CSSProperties } from "react";
+import {
+  memo,
+  useCallback,
+  useDeferredValue,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import sourceData from "./data/benchmark-data.json";
 
 type BenchmarkValue = {
@@ -442,7 +449,7 @@ function createParetoLabelLayout(
   );
 }
 
-function BenchmarkChart({
+const BenchmarkChart = memo(function BenchmarkChart({
   benchmark,
   models,
   linearCost,
@@ -703,7 +710,7 @@ function BenchmarkChart({
       </div>
     </article>
   );
-}
+});
 
 export function BenchmarkExplorer() {
   const [query, setQuery] = useState("");
@@ -716,6 +723,8 @@ export function BenchmarkExplorer() {
   const [includeDeprecated, setIncludeDeprecated] = useState(true);
   const [linearCost, setLinearCost] = useState(false);
   const [activePoint, setActivePoint] = useState<string | null>(null);
+  const deferredSizeMin = useDeferredValue(sizeMin);
+  const deferredSizeMax = useDeferredValue(sizeMax);
 
   const creators = useMemo(() => {
     const map = new Map<string, LabIdentity>();
@@ -738,13 +747,13 @@ export function BenchmarkExplorer() {
         return false;
       }
       if (
-        sizeMin > MODEL_SIZE_MIN ||
-        sizeMax < MODEL_SIZE_MAX
+        deferredSizeMin > MODEL_SIZE_MIN ||
+        deferredSizeMax < MODEL_SIZE_MAX
       ) {
         if (
           !Number.isFinite(model.parameters) ||
-          model.parameters! < sizeMin ||
-          model.parameters! > sizeMax
+          model.parameters! < deferredSizeMin ||
+          model.parameters! > deferredSizeMax
         ) {
           return false;
         }
@@ -762,11 +771,11 @@ export function BenchmarkExplorer() {
     query,
     reasoningOnly,
     selectedCreators,
-    sizeMax,
-    sizeMin,
+    deferredSizeMax,
+    deferredSizeMin,
   ]);
 
-  function resetFilters() {
+  const resetFilters = useCallback(() => {
     setQuery("");
     setHighlightQuery("");
     setSelectedCreators([]);
@@ -776,7 +785,7 @@ export function BenchmarkExplorer() {
     setOpenWeightsOnly(false);
     setIncludeDeprecated(true);
     setActivePoint(null);
-  }
+  }, []);
 
   return (
     <main className="analytical-theme">
@@ -909,8 +918,8 @@ export function BenchmarkExplorer() {
                 className="size-range-inputs"
                 style={
                   {
-                    "--size-min-position": `${modelSizeRatio(sizeMin) * 100}%`,
-                    "--size-max-position": `${modelSizeRatio(sizeMax) * 100}%`,
+                    "--size-min-position": `calc(8px + ${modelSizeRatio(sizeMin)} * (100% - 16px))`,
+                    "--size-max-position": `calc(8px + ${modelSizeRatio(sizeMax)} * (100% - 16px))`,
                   } as CSSProperties
                 }
               >
