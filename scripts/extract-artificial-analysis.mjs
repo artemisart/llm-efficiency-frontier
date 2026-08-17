@@ -39,10 +39,10 @@ const [, manifestPath, manifestKey] = manifestMatch;
 const encrypted = args.has("--payload")
   ? await readFile(args.get("--payload"))
   : Buffer.from(
-      await (
-        await fetch(new URL(manifestPath, sourceUrl))
-      ).arrayBuffer(),
-    );
+    await (
+      await fetch(new URL(manifestPath, sourceUrl))
+    ).arrayBuffer(),
+  );
 
 const key = Buffer.from(manifestKey, "hex");
 const iv = createHash("sha256").update(key).digest().subarray(0, 12);
@@ -96,8 +96,6 @@ console.log(
         rows: dataset.data.length,
       })),
       output,
-    },
-    null,
-    2,
-  ),
+    }
+  )
 );

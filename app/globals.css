@@ -199,14 +199,14 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
-.controls label:not(.check-control) {
+.controls > label:not(.check-control) {
   display: grid;
   gap: 7px;
   min-width: 0;
 }
 
-.controls label > span,
-.filter-control > span {
+.controls > label > span,
+.multi-select-control > span {
   color: var(--muted);
   font-size: 10px;
   font-weight: 800;
@@ -214,14 +214,10 @@ select:focus-visible {
   text-transform: uppercase;
 }
 
-.filter-control {
+.multi-select-control {
   display: grid;
   gap: 7px;
-}
-
-.multi-select-control {
-  flex: 0 0 190px;
-  min-width: 190px;
+  flex: 0 0 120px;
 }
 
 .multi-select-control details {
@@ -333,12 +329,11 @@ select:focus-visible {
   accent-color: var(--ink);
 }
 
-.controls input[type="text"],
-.controls input:not([type]),
-.controls select,
-.search-control input {
+.search-control input,
+.highlight-control input {
   height: 42px;
-  min-width: 168px;
+  min-width: 0;
+  width: 100%;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 8px;
@@ -348,14 +343,12 @@ select:focus-visible {
 }
 
 .size-control {
-  flex: 0 0 248px;
-  min-width: 248px;
+  flex: 0 0 160px;
 }
 
 .size-range {
   display: grid;
   gap: 8px;
-  min-width: 248px;
 }
 
 .size-range output {
@@ -475,20 +468,10 @@ select:focus-visible {
   cursor: grabbing;
 }
 
-.search-control {
-  flex: 1 1 220px;
-  min-width: 180px;
-}
-
-.search-control input,
-.highlight-control input {
-  min-width: 0;
-  width: 100%;
-}
-
+.search-control,
 .highlight-control {
-  flex: 1 1 220px;
-  min-width: 180px;
+  flex: 1 1 140px;
+  min-width: 140px;
 }
 
 .check-control {
@@ -1196,31 +1179,12 @@ select:focus-visible {
     min-width: 0;
   }
 
-  .controls label:not(.check-control) {
-    width: 100%;
-  }
-
-  .filter-control {
-    flex-basis: 100%;
-    min-width: 0;
-    width: 100%;
-  }
-
-  .size-control,
-  .size-range {
-    min-width: 0;
-    width: 100%;
-  }
-
+  .multi-select-control,
   .size-control {
     flex-basis: 100%;
   }
 
   .multi-select-menu {
-    width: 100%;
-  }
-
-  .controls select {
     width: 100%;
   }
 

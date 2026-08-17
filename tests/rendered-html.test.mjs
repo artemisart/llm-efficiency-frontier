@@ -21,7 +21,7 @@ test("static export contains the complete benchmark gallery in the intended orde
   const html = await render();
   assert.match(html, /<title>LLM Efficiency Frontier/);
   assert.match(html, /class="chart-toolbar"/);
-  assert.match(html, /class="filter-control multi-select-control"/);
+  assert.match(html, /class="multi-select-control"/);
   assert.match(html, />Filter</);
   assert.match(html, />Highlight</);
   assert.match(html, /type="range"/);

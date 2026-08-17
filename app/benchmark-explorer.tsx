@@ -844,7 +844,7 @@ export function BenchmarkExplorer() {
               placeholder="Model or lab"
             />
           </label>
-          <div className="filter-control multi-select-control">
+          <div className="multi-select-control">
             <span>Labs</span>
             <details>
               <summary>
