@@ -788,7 +788,7 @@ export function BenchmarkExplorer() {
   }, []);
 
   return (
-    <main className="analytical-theme">
+    <main>
       <section className="hero" id="top">
         <div className="eyebrow">
           <span className="live-dot" />
