@@ -124,11 +124,118 @@ function score(value: number, suffix: string) {
   return `${value.toFixed(precision)}${suffix}`;
 }
 
+function createScoreTicks(min: number, max: number, suffix: string) {
+  const range = max - min;
+  if (range <= 0) return [];
+
+  const step = range <= 50 ? 10 : 25;
+  const firstTick = Math.ceil(min / step) * step;
+  const lastTick = Math.floor(max / step) * step;
+  const ticks = [];
+
+  for (let value = firstTick; value <= lastTick; value += step) {
+    ticks.push({
+      position: ((max - value) / range) * 100,
+      label: `${value}${suffix}`,
+    });
+  }
+
+  return ticks;
+}
+
 function compactMoney(value: number) {
-  if (value >= 1) return `$${value.toFixed(value >= 10 ? 0 : 1)}`;
-  if (value >= 0.1) return `$${value.toFixed(1)}`;
-  if (value >= 0.01) return `$${value.toFixed(2)}`;
-  return `$${value.toPrecision(1)}`;
+  const maximumFractionDigits = Math.max(
+    0,
+    Math.min(8, -Math.floor(Math.log10(value)) + 1),
+  );
+  return `$${value.toLocaleString("en-US", { maximumFractionDigits })}`;
+}
+
+function createCostTicks(min: number, max: number, linear: boolean) {
+  const range = max - min;
+  if (range <= 0) return [];
+
+  if (linear) {
+    const roughStep = range / 4;
+    const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+    const normalizedStep = roughStep / magnitude;
+    const stepMultiplier =
+      normalizedStep < Math.sqrt(2)
+        ? 1
+        : normalizedStep < Math.sqrt(10)
+          ? 2
+          : normalizedStep < Math.sqrt(50)
+            ? 5
+            : 10;
+    const step = stepMultiplier * magnitude;
+    const firstTick = Math.ceil(min / step) * step;
+    const lastTick = Math.floor(max / step) * step;
+    const ticks = [];
+
+    for (let value = firstTick; value <= lastTick + step * 1e-9; value += step) {
+      const roundedValue = Number(value.toPrecision(12));
+      ticks.push({
+        position: ((roundedValue - min) / range) * 100,
+        label: compactMoney(roundedValue),
+      });
+    }
+
+    return ticks;
+  }
+
+  const multipliers = range <= 2 ? [1, 2, 5] : range <= 3 ? [1, 2, 5] : [1];
+  const ticks = [];
+  const firstExponent = Math.floor(min);
+  const lastExponent = Math.ceil(max);
+
+  for (let exponent = firstExponent; exponent <= lastExponent; exponent += 1) {
+    for (const multiplier of multipliers) {
+      const value = multiplier * 10 ** exponent;
+      const axisValue = Math.log10(value);
+      if (axisValue < min - 1e-9 || axisValue > max + 1e-9) continue;
+      ticks.push({
+        position: ((axisValue - min) / range) * 100,
+        label: compactMoney(value),
+      });
+    }
+  }
+
+  return ticks;
+}
+
+function createCostGridLines(
+  min: number,
+  max: number,
+  linear: boolean,
+  ticks: Array<{ position: number }>,
+) {
+  if (linear) {
+    return ticks.map((tick) => ({ position: tick.position, minor: false }));
+  }
+
+  const range = max - min;
+  if (range <= 0) return [];
+
+  const lines = [];
+  const firstExponent = Math.floor(min);
+  const lastExponent = Math.ceil(max);
+
+  for (let exponent = firstExponent; exponent <= lastExponent; exponent += 1) {
+    for (let multiplier = 1; multiplier <= 9; multiplier += 1) {
+      const axisValue = Math.log10(multiplier * 10 ** exponent);
+      if (axisValue < min - 1e-9 || axisValue > max + 1e-9) continue;
+
+      const position = ((axisValue - min) / range) * 100;
+      lines.push({
+        position,
+        minor: !ticks.some(
+          (tick) => Math.abs(tick.position - position) < 1e-7,
+        ),
+      });
+    }
+  }
+
+  return lines;
 }
 
 function formatParameters(value: number) {
@@ -493,22 +600,18 @@ const BenchmarkChart = memo(function BenchmarkChart({
     ? labIdentity(activeModel.creator).key
     : null;
   const hasHighlight = Boolean(highlightQuery.trim());
-  const xTicks = Array.from({ length: 5 }, (_, index) => {
-    const ratio = index / 4;
-    const axisValue = view.xMin + (view.xMax - view.xMin) * ratio;
-    const cost = linearCost ? axisValue : 10 ** axisValue;
-    return { position: ratio * 100, label: compactMoney(cost) };
-  });
-  const yTicks = Array.from({ length: 5 }, (_, index) => {
-    const ratio = index / 4;
-    return {
-      position: ratio * 100,
-      label: score(
-        view.scoreMax - (view.scoreMax - view.scoreMin) * ratio,
-        benchmark.scoreSuffix,
-      ),
-    };
-  });
+  const xTicks = createCostTicks(view.xMin, view.xMax, linearCost);
+  const xGridLines = createCostGridLines(
+    view.xMin,
+    view.xMax,
+    linearCost,
+    xTicks,
+  );
+  const yTicks = createScoreTicks(
+    view.scoreMin,
+    view.scoreMax,
+    benchmark.scoreSuffix,
+  );
 
   return (
     <article className="gallery-card">
@@ -556,27 +659,27 @@ const BenchmarkChart = memo(function BenchmarkChart({
             )}
           </div>
           <span className="y-axis-title">Performance →</span>
-          <div className="y-ticks" aria-hidden="true">
-            {yTicks.map((tick) => (
-              <span key={tick.position} style={{ top: `${tick.position}%` }}>
-                {tick.label}
-              </span>
-            ))}
-          </div>
           <div
             className={`plot-area ${activeModel ? "has-active-point" : ""} ${
               hasHighlight ? "has-highlight" : ""
             }`}
             onClick={() => setActivePoint(null)}
           >
+            <div className="y-ticks" aria-hidden="true">
+              {yTicks.map((tick) => (
+                <span key={tick.position} style={{ top: `${tick.position}%` }}>
+                  {tick.label}
+                </span>
+              ))}
+            </div>
             <div className="chart-better-zone" aria-hidden="true">
               <span>Better ↖</span>
             </div>
-            {xTicks.map((tick) => (
+            {xGridLines.map((line) => (
               <i
-                key={`x-${tick.position}`}
-                className="grid-line vertical"
-                style={{ left: `${tick.position}%` }}
+                key={`x-${line.position}`}
+                className={`grid-line vertical ${line.minor ? "minor" : ""}`}
+                style={{ left: `${line.position}%` }}
               />
             ))}
             {yTicks.map((tick) => (

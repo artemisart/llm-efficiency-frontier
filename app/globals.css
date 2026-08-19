@@ -630,7 +630,7 @@ select:focus-visible {
 
 .plot-shell {
   position: relative;
-  margin: 28px 8px 4px 58px;
+  margin: 28px 8px 4px 38px;
 }
 
 .plot-area {
@@ -738,6 +738,10 @@ select:focus-visible {
   top: 0;
   bottom: 0;
   border-left: 1px dotted rgba(23, 24, 20, 0.2);
+}
+
+.grid-line.vertical.minor {
+  border-left-color: rgba(23, 24, 20, 0.08);
 }
 
 .grid-line.horizontal {
@@ -916,6 +920,8 @@ select:focus-visible {
 
 .x-ticks {
   position: relative;
+  left: 1.5px;
+  width: calc(100% - 1.5px);
   height: 30px;
 }
 
@@ -930,10 +936,10 @@ select:focus-visible {
 
 .y-ticks {
   position: absolute;
-  left: -58px;
+  left: -38px;
   top: 0;
-  bottom: 30px;
-  width: 48px;
+  height: 100%;
+  width: 28px;
 }
 
 .y-ticks span {
@@ -956,7 +962,7 @@ select:focus-visible {
 
 .y-axis-title {
   position: absolute;
-  left: -66px;
+  left: -42px;
   top: 50%;
   transform: translate(-50%, -50%) rotate(-90deg);
   white-space: nowrap;
@@ -964,7 +970,6 @@ select:focus-visible {
 
 .x-axis-title {
   display: block;
-  margin-top: 9px;
   text-align: center;
 }
 
@@ -1131,12 +1136,14 @@ select:focus-visible {
     align-items: start;
   }
 
-  .chart-gallery {
-    grid-template-columns: 1fr;
-  }
-
   .method-grid {
     grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 900px) {
+  .chart-gallery {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -1215,11 +1222,6 @@ select:focus-visible {
     align-items: start;
     flex-wrap: wrap;
     gap: 9px 16px;
-  }
-
-  .point-info-model {
-    width: 100%;
-    flex-basis: 100%;
   }
 
   .y-ticks {
