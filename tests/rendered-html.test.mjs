@@ -54,8 +54,10 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
   ]);
   const dataset = JSON.parse(datasetText);
 
-  assert.match(component, /from "d3-force"/);
   assert.match(component, /createParetoLabelLayout/);
+  assert.match(component, /className="pareto-label-links"/);
+  assert.match(component, /labelOverlap \* 1000/);
+  assert.match(component, /anchorCovered \? 100_000_000/);
   assert.match(component, /className="point-info"/);
   assert.match(component, /isPlottableValue/);
   assert.match(component, /className=\{`effort-level-label/);
@@ -63,7 +65,7 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
   assert.match(component, /matchesModelQuery/);
   assert.doesNotMatch(component, /chooseTooltipPlacement/);
   assert.doesNotMatch(component, /className="site-header"/);
-  assert.match(packageJson, /"d3-force":/);
+  assert.doesNotMatch(packageJson, /"d3-force":/);
   assert.doesNotMatch(css, /\.site-header\s*\{/);
   assert.match(
     css,

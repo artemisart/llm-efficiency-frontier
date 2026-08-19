@@ -1,17 +1,12 @@
 "use client";
 
 import {
-  forceCollide,
-  forceSimulation,
-  forceX,
-  forceY,
-  type SimulationNodeDatum,
-} from "d3-force";
-import {
   memo,
   useCallback,
   useDeferredValue,
+  useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
 } from "react";
@@ -103,14 +98,28 @@ type LabIdentity = {
   name: string;
 };
 
-type LabelLayoutNode = SimulationNodeDatum & {
-  kind: "label" | "point";
-  modelId?: string;
-  anchorX: number;
-  anchorY: number;
-  radius: number;
-  labelWidth?: number;
+type LabelBox = {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
 };
+
+type LabelLayout = {
+  left: number;
+  top: number;
+  leader: {
+    x1: number;
+    y1: number;
+    x2: number;
+    y2: number;
+  } | null;
+};
+
+const LABEL_HEIGHT = 13;
+const LABEL_GAP = 5;
+const LABEL_PADDING = 3;
+const POINT_CLEARANCE = 8;
 
 function money(value: number) {
   if (value < 0.001) return `$${value.toFixed(5)}`;
@@ -462,98 +471,175 @@ function createParetoLabelLayout(
   models: Model[],
   view: ReturnType<typeof createChartView>,
   paretoLabels: Set<string>,
+  plotWidth: number,
+  plotHeight: number,
 ) {
-  const pointNodes: LabelLayoutNode[] = models.map((model) => {
-    const x = (view.x(model) / 100) * PLOT_WIDTH;
-    const y = (view.y(model) / 100) * PLOT_HEIGHT;
-    return {
-      kind: "point",
-      anchorX: x,
-      anchorY: y,
-      x,
-      y,
-      fx: x,
-      fy: y,
-      radius: 7,
-    };
-  });
-  const labelNodes: LabelLayoutNode[] = models
+  const points = models.map((model) => ({
+    modelId: model.id,
+    x: (view.x(model) / 100) * plotWidth,
+    y: (view.y(model) / 100) * plotHeight,
+  }));
+  const labels = models
     .filter((model) => paretoLabels.has(model.id))
     .map((model) => {
-      const anchorX = (view.x(model) / 100) * PLOT_WIDTH;
-      const anchorY = (view.y(model) / 100) * PLOT_HEIGHT;
+      const anchorX = (view.x(model) / 100) * plotWidth;
+      const anchorY = (view.y(model) / 100) * plotHeight;
       const label = paretoLabel(model);
       const labelWidth = Math.min(
         110,
         Math.max(38, label.length * 4.7 + 10),
       );
-      const placeLeft = anchorX > PLOT_WIDTH * 0.7;
       return {
-        kind: "label",
         modelId: model.id,
-        anchorX: Math.min(
-          PLOT_WIDTH - labelWidth / 2,
-          Math.max(
-            labelWidth / 2,
-            anchorX + (placeLeft ? -(labelWidth / 2 + 12) : labelWidth / 2 + 12),
-          ),
-        ),
-        anchorY: Math.min(PLOT_HEIGHT - 9, Math.max(9, anchorY - 10)),
-        x: anchorX + (placeLeft ? -(labelWidth / 2 + 12) : labelWidth / 2 + 12),
-        y: anchorY - 10,
-        radius: Math.hypot(labelWidth, 16) / 2 + 3,
+        anchorX: Math.min(plotWidth, Math.max(0, anchorX)),
+        anchorY: Math.min(plotHeight, Math.max(0, anchorY)),
         labelWidth,
       };
-    });
+    })
+    .sort((left, right) => left.anchorX - right.anchorX);
+  const placed: LabelBox[] = [];
+  const result = new Map<string, LabelLayout>();
 
-  const nodes = [...pointNodes, ...labelNodes];
-  const simulation = forceSimulation(nodes)
-    .force(
-      "x",
-      forceX<LabelLayoutNode>((node) => node.anchorX).strength((node) =>
-        node.kind === "label" ? 0.18 : 0,
-      ),
-    )
-    .force(
-      "y",
-      forceY<LabelLayoutNode>((node) => node.anchorY).strength((node) =>
-        node.kind === "label" ? 0.24 : 0,
-      ),
-    )
-    .force(
-      "collide",
-      forceCollide<LabelLayoutNode>((node) => node.radius)
-        .strength(0.92)
-        .iterations(3),
-    )
-    .alphaDecay(0.045)
-    .velocityDecay(0.55)
-    .stop();
+  for (const label of labels) {
+    const halfWidth = label.labelWidth / 2;
+    const halfHeight = LABEL_HEIGHT / 2;
+    const horizontalStep = Math.max(22, halfWidth * 0.7);
+    const verticalStep = LABEL_HEIGHT + LABEL_PADDING + 2;
+    const preferBelow = label.anchorY < LABEL_HEIGHT + LABEL_GAP + 4;
+    const verticalDirections = preferBelow ? [1, -1] : [-1, 1];
+    const candidates: Array<{ x: number; y: number; preference: number }> = [];
 
-  for (let index = 0; index < 180; index += 1) {
-    simulation.tick();
-    for (const node of labelNodes) {
-      const halfWidth = (node.labelWidth ?? 40) / 2;
-      node.x = Math.min(
-        PLOT_WIDTH - halfWidth,
-        Math.max(halfWidth, node.x ?? node.anchorX),
-      );
-      node.y = Math.min(
-        PLOT_HEIGHT - 9,
-        Math.max(9, node.y ?? node.anchorY),
-      );
+    for (const ring of [0, 1]) {
+      for (const direction of verticalDirections) {
+        for (const shift of [
+          0,
+          -horizontalStep,
+          horizontalStep,
+          -horizontalStep * 2,
+          horizontalStep * 2,
+        ]) {
+          candidates.push({
+            x: label.anchorX + shift,
+            y:
+              label.anchorY +
+              direction *
+                (halfHeight + LABEL_GAP + 4 + ring * verticalStep),
+            preference: candidates.length,
+          });
+        }
+      }
     }
+    for (const ring of [0, 1]) {
+      for (const direction of label.anchorX > plotWidth * 0.72
+        ? [-1, 1]
+        : [1, -1]) {
+        for (const shift of [
+          0,
+          -verticalStep,
+          verticalStep,
+          -verticalStep * 2,
+          verticalStep * 2,
+        ]) {
+          candidates.push({
+            x:
+              label.anchorX +
+              direction *
+                (halfWidth + LABEL_GAP + 4 + ring * horizontalStep),
+            y: label.anchorY + shift,
+            preference: candidates.length,
+          });
+        }
+      }
+    }
+
+    const scored = candidates.map((candidate) => {
+      const x = Math.min(
+        plotWidth - halfWidth,
+        Math.max(halfWidth, candidate.x),
+      );
+      const y = Math.min(
+        plotHeight - halfHeight,
+        Math.max(halfHeight, candidate.y),
+      );
+      const box = {
+        left: x - halfWidth,
+        right: x + halfWidth,
+        top: y - halfHeight,
+        bottom: y + halfHeight,
+      };
+      const labelOverlap = placed.reduce((total, other) => {
+        const width = Math.max(
+          0,
+          Math.min(box.right, other.right + LABEL_PADDING) -
+            Math.max(box.left, other.left - LABEL_PADDING),
+        );
+        const height = Math.max(
+          0,
+          Math.min(box.bottom, other.bottom + LABEL_PADDING) -
+            Math.max(box.top, other.top - LABEL_PADDING),
+        );
+        return total + width * height;
+      }, 0);
+      const coveredPoints = points.filter(
+        (point) =>
+          point.x >= box.left - POINT_CLEARANCE &&
+          point.x <= box.right + POINT_CLEARANCE &&
+          point.y >= box.top - POINT_CLEARANCE &&
+          point.y <= box.bottom + POINT_CLEARANCE,
+      ).length;
+      const anchorCovered =
+        label.anchorX >= box.left - POINT_CLEARANCE &&
+        label.anchorX <= box.right + POINT_CLEARANCE &&
+        label.anchorY >= box.top - POINT_CLEARANCE &&
+        label.anchorY <= box.bottom + POINT_CLEARANCE;
+      const distance = Math.hypot(x - label.anchorX, y - label.anchorY);
+      return {
+        box,
+        x,
+        y,
+        score:
+          (anchorCovered ? 100_000_000 : 0) +
+          (labelOverlap > 0 ? 1_000_000 : 0) +
+          labelOverlap * 1000 +
+          coveredPoints * 10000 +
+          distance +
+          candidate.preference * 0.25,
+      };
+    });
+    const best = scored.reduce((current, candidate) =>
+      candidate.score < current.score ? candidate : current,
+    );
+    placed.push(best.box);
+
+    const deltaX = label.anchorX - best.x;
+    const deltaY = label.anchorY - best.y;
+    const edgeScale = Math.min(
+      Math.abs(deltaX) > 0 ? halfWidth / Math.abs(deltaX) : Infinity,
+      Math.abs(deltaY) > 0 ? halfHeight / Math.abs(deltaY) : Infinity,
+    );
+    const edgeX = best.x + deltaX * edgeScale;
+    const edgeY = best.y + deltaY * edgeScale;
+    const leaderLength = Math.hypot(
+      label.anchorX - edgeX,
+      label.anchorY - edgeY,
+    );
+
+    result.set(label.modelId, {
+      left: (best.x / plotWidth) * 100,
+      top: (best.y / plotHeight) * 100,
+      leader:
+        leaderLength > LABEL_GAP + 3
+          ? {
+              x1: label.anchorX,
+              y1: label.anchorY,
+              x2: edgeX,
+              y2: edgeY,
+            }
+          : null,
+    });
   }
 
-  return new Map(
-    labelNodes.map((node) => [
-      node.modelId!,
-      {
-        left: ((node.x ?? node.anchorX) / PLOT_WIDTH) * 100,
-        top: ((node.y ?? node.anchorY) / PLOT_HEIGHT) * 100,
-      },
-    ]),
-  );
+  return result;
 }
 
 const BenchmarkChart = memo(function BenchmarkChart({
@@ -565,6 +651,30 @@ const BenchmarkChart = memo(function BenchmarkChart({
   setActivePoint,
   resetFilters,
 }: ChartProps) {
+  const plotAreaRef = useRef<HTMLDivElement>(null);
+  const [plotSize, setPlotSize] = useState({
+    width: PLOT_WIDTH,
+    height: PLOT_HEIGHT,
+  });
+
+  useEffect(() => {
+    const plotArea = plotAreaRef.current;
+    if (!plotArea) return;
+    const updateSize = () => {
+      const { width, height } = plotArea.getBoundingClientRect();
+      setPlotSize((current) =>
+        Math.abs(current.width - width) < 0.5 &&
+        Math.abs(current.height - height) < 0.5
+          ? current
+          : { width, height },
+      );
+    };
+    updateSize();
+    const observer = new ResizeObserver(updateSize);
+    observer.observe(plotArea);
+    return () => observer.disconnect();
+  }, []);
+
   const {
     plotted,
     view,
@@ -586,9 +696,11 @@ const BenchmarkChart = memo(function BenchmarkChart({
         nextPlotted,
         nextView,
         nextParetoLabels,
+        plotSize.width,
+        plotSize.height,
       ),
     };
-  }, [benchmark.id, linearCost, models]);
+  }, [benchmark.id, linearCost, models, plotSize]);
   const activeModel = plotted.find(
     (model) => activePoint === `${benchmark.id}:${model.id}`,
   );
@@ -660,6 +772,7 @@ const BenchmarkChart = memo(function BenchmarkChart({
           </div>
           <span className="y-axis-title">Performance →</span>
           <div
+            ref={plotAreaRef}
             className={`plot-area ${activeModel ? "has-active-point" : ""} ${
               hasHighlight ? "has-highlight" : ""
             }`}
@@ -724,6 +837,7 @@ const BenchmarkChart = memo(function BenchmarkChart({
                 <button
                   key={model.id}
                   type="button"
+                  data-model-id={model.id}
                   className={`point ${isActive ? "selected" : ""} ${
                     isProviderPeer ? "provider-peer" : "provider-muted"
                   } ${isEffortPeer ? "effort-peer" : ""} ${
@@ -762,6 +876,29 @@ const BenchmarkChart = memo(function BenchmarkChart({
                 </button>
               );
             })}
+            <svg
+              className="pareto-label-links"
+              viewBox={`0 0 ${plotSize.width} ${plotSize.height}`}
+              preserveAspectRatio="none"
+              aria-hidden="true"
+            >
+              {plotted
+                .filter((model) => paretoLabels.has(model.id))
+                .map((model) => {
+                  const leader = paretoLabelLayout.get(model.id)?.leader;
+                  if (!leader) return null;
+                  return (
+                    <line
+                      key={model.id}
+                      x1={leader.x1}
+                      y1={leader.y1}
+                      x2={leader.x2}
+                      y2={leader.y2}
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  );
+                })}
+            </svg>
             <div className="pareto-label-layer" aria-hidden="true">
               {plotted
                 .filter((model) => paretoLabels.has(model.id))
@@ -771,6 +908,7 @@ const BenchmarkChart = memo(function BenchmarkChart({
                   return (
                     <span
                       key={model.id}
+                      data-model-id={model.id}
                       className={`point-label frontier-label ${
                         hasHighlight
                           ? matchesModelQuery(model, highlightQuery)
