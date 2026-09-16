@@ -8,8 +8,10 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "test": "npm run build && node --test tests/rendered-html.test.mjs",
-    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
+    "test": "npm run test:data && npm run build && node --test tests/rendered-html.test.mjs",
+    "lint": "eslint . --ignore-pattern dist --ignore-pattern .next",
+    "refresh:data": "node scripts/refresh-benchmarks.mjs",
+    "test:data": "node --test tests/refresh-benchmarks.test.mjs"
   },
   "dependencies": {
     "next": "16.2.6",

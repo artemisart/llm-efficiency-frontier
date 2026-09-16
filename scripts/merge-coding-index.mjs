@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { modelCountMeta, plottableModels } from "./lib/benchmark-data.mjs";
 
 const [datasetPath, codingIndexPath, outputPath] = process.argv.slice(2);
 
@@ -12,10 +13,9 @@ const dataset = JSON.parse(await readFile(datasetPath, "utf8"));
 const source = JSON.parse(await readFile(codingIndexPath, "utf8"));
 const benchmarkId = "aa-coding-agent-index-v1-3";
 const modelPrefix = "coding-index:";
-const previousCodingModelCount = dataset.models.filter((model) =>
-  model.id.startsWith(modelPrefix),
-).length;
-const baseModels = dataset.models.filter((model) => !model.id.startsWith(modelPrefix));
+const baseModels = plottableModels(
+  dataset.models.filter((model) => !model.id.startsWith(modelPrefix)),
+);
 const benchmarks = dataset.benchmarks.filter(
   (benchmark) => benchmark.id !== benchmarkId,
 );
@@ -32,7 +32,7 @@ benchmarks.push({
   costAxisLabel: "Average API cost per task (USD)",
   sourceUrl: source.sourceUrl,
   sourceLabel: "Artificial Analysis",
-  modelsWithData: source.rows.length,
+  modelsWithData: 0,
 });
 
 const creatorLookup = new Map();
@@ -67,19 +67,20 @@ const codingModels = source.rows.map((row) => {
     },
   };
 });
+const outputModels = plottableModels([...baseModels, ...codingModels]);
+benchmarks.at(-1).modelsWithData = outputModels.filter(
+  (model) => model.benchmarks[benchmarkId],
+).length;
 
 const output = {
   ...dataset,
   meta: {
     ...dataset.meta,
-    externalModelCount:
-      (dataset.meta.externalModelCount ?? 0) -
-      previousCodingModelCount +
-      codingModels.length,
+    ...modelCountMeta(dataset.meta, outputModels),
     codingAgentModelCount: codingModels.length,
   },
   benchmarks,
-  models: [...baseModels, ...codingModels],
+  models: outputModels,
 };
 
 await writeFile(outputPath, `${JSON.stringify(output)}\n`);

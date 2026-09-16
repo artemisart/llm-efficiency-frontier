@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { modelCountMeta, plottableModels } from "./lib/benchmark-data.mjs";
 
 const [datasetPath, frontierCodePath, outputPath] = process.argv.slice(2);
 
@@ -12,10 +13,9 @@ const dataset = JSON.parse(await readFile(datasetPath, "utf8"));
 const frontierCode = JSON.parse(await readFile(frontierCodePath, "utf8")).v1_1;
 const benchmarkId = "frontier-code-1-1-main";
 const modelPrefix = "frontier-code:";
-const previousCount = dataset.models.filter((model) =>
-  model.id.startsWith(modelPrefix),
-).length;
-const baseModels = dataset.models.filter((model) => !model.id.startsWith(modelPrefix));
+const baseModels = plottableModels(
+  dataset.models.filter((model) => !model.id.startsWith(modelPrefix)),
+);
 
 const frontierModels = [];
 for (const [modelName, efforts] of Object.entries(frontierCode.data)) {
@@ -77,16 +77,16 @@ const benchmarks = dataset.benchmarks
     (left, right) =>
       (benchmarkOrder.get(left.id) ?? 2) - (benchmarkOrder.get(right.id) ?? 2),
   );
+const outputModels = plottableModels([...baseModels, ...frontierModels]);
 
 const output = {
   ...dataset,
   meta: {
     ...dataset.meta,
-    externalModelCount:
-      (dataset.meta.externalModelCount ?? 0) - previousCount + frontierModels.length,
+    ...modelCountMeta(dataset.meta, outputModels),
   },
   benchmarks,
-  models: [...baseModels, ...frontierModels],
+  models: outputModels,
 };
 
 await writeFile(outputPath, `${JSON.stringify(output)}\n`);

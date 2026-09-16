@@ -1,4 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { deepSweCost } from "./lib/deepswe-pricing.mjs";
+import { liveBenchMetrics } from "./lib/livebench-cost.mjs";
+import { modelCountMeta, plottableModels } from "./lib/benchmark-data.mjs";
 
 const [
   basePath,
@@ -8,6 +11,7 @@ const [
   liveBenchCostPath,
   liveBenchCategoriesPath,
   outputPath,
+  deepSwePricingPath,
 ] = process.argv.slice(2);
 
 if (
@@ -20,13 +24,16 @@ if (
   !outputPath
 ) {
   throw new Error(
-    "Usage: node scripts/merge-external-benchmarks.mjs <base.json> <frontier-code.json> <deepswe.json> <livebench-table.csv> <livebench-cost.csv> <livebench-categories.json> <output.json>",
+    "Usage: node scripts/merge-external-benchmarks.mjs <base.json> <frontier-code.json> <deepswe.json> <livebench-table.csv> <livebench-cost.csv> <livebench-categories.json> <output.json> [deepswe-pricing.json]",
   );
 }
 
 const base = JSON.parse(await readFile(basePath, "utf8"));
 const frontierCode = JSON.parse(await readFile(frontierCodePath, "utf8")).v1_1;
 const deepSwe = JSON.parse(await readFile(deepSwePath, "utf8"));
+const deepSwePricing = JSON.parse(await readFile(
+  deepSwePricingPath ?? new URL("./data/deepswe-pricing.json", import.meta.url), "utf8",
+));
 const liveBenchRows = parseCsv(await readFile(liveBenchTablePath, "utf8"));
 const liveBenchCosts = parseCsv(await readFile(liveBenchCostPath, "utf8"));
 const liveBenchCategories = JSON.parse(await readFile(liveBenchCategoriesPath, "utf8"));
@@ -36,99 +43,25 @@ const externalBenchmarkIds = new Set([
   "deep-swe-v1-1",
   "livebench-2026-06-25",
 ]);
-const baseModels = base.models.filter(
-  (model) =>
-    !model.id.startsWith("frontier-code:") &&
-    !model.id.startsWith("deep-swe:") &&
-    !model.id.startsWith("livebench:"),
+const baseModels = plottableModels(
+  base.models.filter(
+    (model) =>
+      !model.id.startsWith("frontier-code:") &&
+      !model.id.startsWith("deep-swe:") &&
+      !model.id.startsWith("livebench:"),
+  ),
 );
 
-const artificialAnalysisMetadata = {
-  "intelligence-index": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/artificial-analysis-intelligence-index",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Weighted average cost per task (USD)",
-    description:
-      "A weighted composite of nine independently run evaluations spanning agentic work, coding, science, long-context reasoning, and factual reliability. It is a broad market signal rather than a substitute for workload-specific testing.",
-  },
-  "gdpval-aa-v2": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/gdpval-aa",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Measures agentic performance on 220 economically valuable tasks across 44 occupations and nine industries. Models browse, use a shell, and produce realistic deliverables such as spreadsheets, presentations, documents, and diagrams.",
-  },
-  "tau3-banking": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/tau3-banking",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Tests customer-support agents on realistic banking workflows. Success requires searching a large policy knowledge base, maintaining conversational state, and executing the correct sequence of tool calls without violating constraints.",
-  },
-  "terminal-bench-v2-1": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/terminalbench-v2-1",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Evaluates agents on 89 verified terminal tasks across software engineering, system administration, security, data processing, and model training. Each task runs in a real sandbox and is checked by an executable verification suite.",
-  },
-  scicode: {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/scicode",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "A scientist-curated coding evaluation with 288 subproblems drawn from 80 laboratory problems across 16 scientific disciplines. It requires both domain reasoning and correct implementation of research-oriented numerical code.",
-  },
-  "humanitys-last-exam": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/humanitys-last-exam",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "A frontier academic benchmark of 2,500 expert-vetted questions across mathematics, science, engineering, humanities, and social science. Its breadth and difficulty are designed to resist simple saturation.",
-  },
-  "gpqa-diamond": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/gpqa-diamond",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "The hardest 198 questions from GPQA, written and validated by domain experts in physics, biology, and chemistry. The questions are deliberately Google-resistant and require graduate-level scientific reasoning.",
-  },
-  critpt: {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/critpt",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Tests research-scale physics reasoning on 71 composite challenges created by more than 50 researchers across 11 subfields. Guess-resistant answers include symbolic expressions, numerical arrays, and executable functions.",
-  },
-  "aa-omniscience": {
-    sourceUrl: "https://artificialanalysis.ai/evaluations/omniscience",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Measures factual reliability across 6,000 questions, 42 topics, and six economically relevant domains. The index rewards correct answers, penalizes confident hallucinations, and does not penalize abstention.",
-  },
-  "aa-lcr": {
-    sourceUrl:
-      "https://artificialanalysis.ai/evaluations/artificial-analysis-long-context-reasoning",
-    sourceLabel: "Artificial Analysis",
-    costAxisLabel: "Average cost per task (USD)",
-    description:
-      "Evaluates whether models can retrieve, connect, and synthesize evidence from documents ranging from roughly 10,000 to 100,000 tokens. It targets reasoning over distant context, not simple needle retrieval.",
-  },
-};
 
 const benchmarks = base.benchmarks
-  .filter((benchmark) => !externalBenchmarkIds.has(benchmark.id))
-  .map((benchmark) => ({
-    ...benchmark,
-    ...artificialAnalysisMetadata[benchmark.id],
-  }));
+  .filter((benchmark) => !externalBenchmarkIds.has(benchmark.id));
 
 benchmarks.push(
   {
     id: "frontier-code-1-1-main",
     label: "FrontierCode 1.1 Main",
     shortLabel: "FrontierCode",
+    pricingNote: "Source-reported costs; a complete token and rate breakdown is unavailable for independent repricing.",
     scoreSuffix: "%",
     description:
       "Cognition’s quality-focused coding benchmark asks whether an open-source maintainer would merge the generated change. Main contains 100 difficult tasks and scores correctness, tests, scope discipline, style, and codebase standards across five rollouts per effort.",
@@ -143,11 +76,12 @@ benchmarks.push(
     id: "deep-swe-v1-1",
     label: "DeepSWE v1.1",
     shortLabel: "DeepSWE",
+    pricingNote: "Costs use DeepSWE’s updated API rates, including its promotional and peak-rate choices.",
     scoreSuffix: "%",
     description:
       "A contamination-resistant, long-horizon software-engineering benchmark with 113 original tasks across 91 repositories and five languages. Hand-written behavioral verifiers score complete mini-swe-agent rollouts rather than patches copied from historical pull requests.",
     costNote:
-      "Mean published cost per scored rollout; pass@1 is the share of individual attempts that pass. Provider accounting can differ for cached tokens.",
+      "Mean rollout cost using DeepSWE’s displayed pricing adjustments, including promotional and peak-rate choices. Pass@1 is unchanged.",
     costAxisLabel: "Mean rollout cost (USD)",
     sourceUrl: "https://deepswe.datacurve.ai/",
     sourceLabel: "Datacurve",
@@ -157,6 +91,7 @@ benchmarks.push(
     id: "livebench-2026-06-25",
     label: "LiveBench 2026-06-25",
     shortLabel: "LiveBench",
+    pricingNote: "Source-reported run costs; not uniformly repriced to current API rates.",
     scoreSuffix: "",
     description:
       "A contamination-conscious benchmark of 23 objective tasks across reasoning, coding, agentic coding, mathematics, data analysis, language, and instruction following. Questions refresh every six months and are graded against verifiable answers.",
@@ -197,30 +132,26 @@ const deepSweModels = deepSwe.rows
       Number.isFinite(row.mean_cost_usd) &&
       row.mean_cost_usd > 0,
   )
-  .map((row) =>
-    externalModel({
+  .map((row) => {
+    const pricing = deepSweCost(row, deepSwePricing);
+    const model = externalModel({
       id: `deep-swe:${row.model}:${row.reasoning_effort}`,
       baseName: humanizeModel(row.model),
       effort: row.reasoning_effort,
       benchmarkId: "deep-swe-v1-1",
       score: row.pass_at_1 * 100,
-      cost: row.mean_cost_usd,
+      cost: pricing.cost,
       baseModels,
       slugHint: row.model,
-    }),
-  );
+    });
+    Object.assign(model.benchmarks["deep-swe-v1-1"], pricing);
+    return model;
+  });
 
 const liveBenchCostMap = new Map(liveBenchCosts.map((row) => [row.model, row]));
 const liveBenchModels = liveBenchRows.flatMap((row) => {
-  const cost = Number(liveBenchCostMap.get(row.model)?.cost_per_successful_task);
+  const { score: overall, cost } = liveBenchMetrics(row, liveBenchCostMap.get(row.model), liveBenchCategories);
   if (!Number.isFinite(cost) || cost <= 0) return [];
-  const categoryScores = Object.values(liveBenchCategories).map(
-    (tasks) =>
-      tasks.reduce((total, task) => total + Number(row[task]), 0) / tasks.length,
-  );
-  const overall =
-    categoryScores.reduce((total, categoryScore) => total + categoryScore, 0) /
-    categoryScores.length;
   const { baseSlug, effort } = liveBenchIdentity(row.model);
   return [
     externalModel({
@@ -236,7 +167,12 @@ const liveBenchModels = liveBenchRows.flatMap((row) => {
   ];
 });
 
-const models = [...baseModels, ...frontierModels, ...deepSweModels, ...liveBenchModels];
+const models = plottableModels([
+  ...baseModels,
+  ...frontierModels,
+  ...deepSweModels,
+  ...liveBenchModels,
+]);
 for (const benchmark of benchmarks) {
   benchmark.modelsWithData = models.filter(
     (model) => model.benchmarks[benchmark.id],
@@ -247,9 +183,9 @@ const output = {
   ...base,
   meta: {
     ...base.meta,
-    externalModelCount:
-      frontierModels.length + deepSweModels.length + liveBenchModels.length,
+    ...modelCountMeta(base.meta, models),
     sourceCount: 4,
+    deepSwePricing: { sourceUrl: deepSwePricing.sourceUrl, sourceSha256: deepSwePricing.sourceSha256, retrievedAt: deepSwePricing.retrievedAt, policy: deepSwePricing.policy },
   },
   benchmarks,
   models,

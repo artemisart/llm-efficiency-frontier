@@ -1,4 +1,5 @@
 import { readFile, writeFile } from "node:fs/promises";
+import { modelCountMeta, plottableModels } from "./lib/benchmark-data.mjs";
 
 const [datasetPath, fullSourcePath, outputPath] = process.argv.slice(2);
 
@@ -23,28 +24,43 @@ for (const model of catalog) {
   parametersByName.set(key, values);
 }
 
-const models = dataset.models.map((model) => {
-  const exact = parametersById.get(model.id);
-  if (Number.isFinite(exact)) return { ...model, parameters: exact };
+const models = plottableModels(
+  dataset.models.map((model) => {
+    const exact = parametersById.get(model.id);
+    if (Number.isFinite(exact)) return { ...model, parameters: exact };
 
-  const candidateName =
-    model.baseName ??
-    model.name
-      .split("·")
-      .at(-1)
-      ?.trim();
-  const candidateKey = normalizeModelName(candidateName ?? model.name);
-  const matches = [...parametersByName.entries()].filter(
-    ([key]) => key === candidateKey || key.startsWith(candidateKey),
-  );
-  const values = new Set(matches.flatMap(([, sizes]) => [...sizes]));
-  return {
-    ...model,
-    parameters: values.size === 1 ? [...values][0] : null,
-  };
-});
+    const candidateName =
+      model.baseName ??
+      model.name
+        .split("·")
+        .at(-1)
+        ?.trim();
+    const candidateKey = normalizeModelName(candidateName ?? model.name);
+    const matches = [...parametersByName.entries()].filter(
+      ([key]) => key === candidateKey || key.startsWith(candidateKey),
+    );
+    const values = new Set(matches.flatMap(([, sizes]) => [...sizes]));
+    return {
+      ...model,
+      parameters: values.size === 1 ? [...values][0] : null,
+    };
+  }),
+);
 
-const output = { ...dataset, models };
+const output = {
+  ...dataset,
+  meta: {
+    ...dataset.meta,
+    ...modelCountMeta(
+      {
+        ...dataset.meta,
+        sourceModelCount: source.languageModelPayload.models.length,
+      },
+      models,
+    ),
+  },
+  models,
+};
 await writeFile(outputPath, `${JSON.stringify(output)}\n`);
 
 console.log(
