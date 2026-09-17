@@ -25,6 +25,7 @@ test("static export contains the complete benchmark gallery in the intended orde
   assert.match(html, />Filter</);
   assert.match(html, />Highlight</);
   assert.match(html, /type="range"/);
+  assert.match(html, /aria-label="Reset model size filter"/);
   assert.match(html, /LLM Efficiency Frontier/);
   assert.doesNotMatch(html, />AI21 Labs</);
   assert.match(html, />Performance →</);
@@ -36,9 +37,22 @@ test("static export contains the complete benchmark gallery in the intended orde
     ),
   );
   assert.doesNotMatch(html, /sites\.openai\.com/);
+  const dataset = JSON.parse(await readFile(new URL("../app/data/benchmark-data.json", import.meta.url), "utf8"));
+  for (const benchmark of dataset.benchmarks.filter((item) => item.historical)) {
+    assert.ok(html.includes(benchmark.refreshNote));
+    assert.ok(html.includes(benchmark.refreshedAt.slice(0, 10)));
+  }
+
+  for (const benchmark of dataset.benchmarks.filter((item) => item.pricingNote)) {
+    assert.ok(html.includes(benchmark.pricingNote));
+  }
+
+  for (const label of ["AA-Briefcase", "AutomationBench-AA", "Terminal-Bench 4.0", "GDP.pdf", "AA-LCR v1.1"]) {
+    assert.ok(html.includes(`<h3>${label}</h3>`), `${label} is missing from the gallery`);
+  }
 
   const intelligence = html.indexOf("<h3>Intelligence Index</h3>");
-  const coding = html.indexOf("<h3>AA Coding Agent Index v1.3</h3>");
+  const coding = html.search(/<h3>AA Coding Agent Index v[0-9.]+<\/h3>/);
   const gdpval = html.indexOf("<h3>GDPval-AA v2</h3>");
   assert.ok(intelligence >= 0);
   assert.ok(coding > intelligence);
@@ -63,6 +77,10 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
   assert.match(component, /className=\{`effort-level-label/);
   assert.match(component, /labIdentity/);
   assert.match(component, /matchesModelQuery/);
+  assert.match(component, /const resetModelSize = useCallback/);
+  assert.match(component, /onClick=\{resetModelSize\}/);
+  assert.match(component, /const MODEL_SIZE_MIN = Math\.min/);
+  assert.doesNotMatch(component, /const MODEL_SIZE_MIN = 0\.1/);
   assert.doesNotMatch(component, /chooseTooltipPlacement/);
   assert.doesNotMatch(component, /className="site-header"/);
   assert.doesNotMatch(packageJson, /"d3-force":/);
@@ -81,7 +99,25 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
     assert.ok(frontierNames.has(model), `${model} is missing from FrontierCode`);
   }
   assert.ok(
-    dataset.models.filter((model) => Number.isFinite(model.parameters)).length >= 374,
+    dataset.models.filter((model) => Number.isFinite(model.parameters)).length >= 70,
+  );
+  assert.ok(dataset.meta.sourceModelCount > dataset.meta.modelCount);
+  assert.equal(
+    dataset.meta.modelCount,
+    dataset.models.filter(
+      (model) =>
+        !/^(?:coding-index|deep-swe|frontier-code|livebench):/.test(model.id),
+    ).length,
+  );
+  assert.ok(
+    dataset.models.every((model) =>
+      Object.values(model.benchmarks).some(
+        (value) =>
+          Number.isFinite(value.score) &&
+          Number.isFinite(value.cost) &&
+          value.cost > 0,
+      ),
+    ),
   );
   assert.match(css, /\.chart-better-zone\s*\{[^}]*width:\s*25%[^}]*height:\s*25%/s);
   assert.match(css, /\.point-info\s*\{/);

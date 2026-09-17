@@ -48,6 +48,10 @@ type Benchmark = {
   sourceUrl: string;
   sourceLabel: string;
   modelsWithData: number;
+  historical?: boolean;
+  refreshedAt?: string;
+  refreshNote?: string;
+  pricingNote?: string;
 };
 
 type DataShape = {
@@ -55,6 +59,7 @@ type DataShape = {
     source: string;
     extractedAt: string;
     modelCount: number;
+    sourceModelCount: number;
     endpointCount: number;
     graphDatasetCount: number;
     externalModelCount: number;
@@ -88,10 +93,6 @@ const EFFORT_RANK: Record<string, number> = {
 };
 const PLOT_WIDTH = 620;
 const PLOT_HEIGHT = 310;
-const MODEL_SIZE_MIN = 0.1;
-const MODEL_SIZE_MAX = 4096;
-const MODEL_SIZE_LOG_MIN = Math.log10(MODEL_SIZE_MIN);
-const MODEL_SIZE_LOG_MAX = Math.log10(MODEL_SIZE_MAX);
 
 type LabIdentity = {
   key: string;
@@ -137,7 +138,27 @@ function createScoreTicks(min: number, max: number, suffix: string) {
   const range = max - min;
   if (range <= 0) return [];
 
-  const step = range <= 50 ? 10 : 25;
+  // Keep the established detail on ordinary score ranges, but avoid drawing
+  // dozens of horizontal rows when a benchmark uses a larger score scale.
+  const step =
+    range <= 50
+      ? 10
+      : range <= 200
+        ? 25
+        : (() => {
+            const roughStep = range / 10;
+            const magnitude = 10 ** Math.floor(Math.log10(roughStep));
+            const normalizedStep = roughStep / magnitude;
+            const stepMultiplier =
+              normalizedStep < 2.25
+                ? 2
+                : normalizedStep < 3.5
+                  ? 2.5
+                  : normalizedStep < 7
+                    ? 5
+                    : 10;
+            return stepMultiplier * magnitude;
+          })();
   const firstTick = Math.ceil(min / step) * step;
   const lastTick = Math.floor(max / step) * step;
   const ticks = [];
@@ -316,6 +337,18 @@ function isPlottableValue(value: BenchmarkValue | undefined) {
 function hasPlottableBenchmark(model: Model) {
   return Object.values(model.benchmarks).some(isPlottableValue);
 }
+
+const MODEL_SIZE_MIN = Math.min(
+  ...data.models
+    .map((model) => model.parameters)
+    .filter(
+      (parameters): parameters is number =>
+        parameters !== null && Number.isFinite(parameters) && parameters > 0,
+    ),
+);
+const MODEL_SIZE_MAX = 4096;
+const MODEL_SIZE_LOG_MIN = Math.log10(MODEL_SIZE_MIN);
+const MODEL_SIZE_LOG_MAX = Math.log10(MODEL_SIZE_MAX);
 
 function paretoLabel(model: Model) {
   return model.shortName
@@ -739,6 +772,14 @@ const BenchmarkChart = memo(function BenchmarkChart({
         </a>
       </div>
       <p className="gallery-card-description">{benchmark.description}</p>
+      {benchmark.pricingNote && (
+        <p className="gallery-card-description">{benchmark.pricingNote}</p>
+      )}
+      {benchmark.historical && (
+        <p className="gallery-card-description">
+          Historical snapshot ({benchmark.refreshedAt?.slice(0, 10)}). {benchmark.refreshNote}
+        </p>
+      )}
 
       {plotted.length ? (
         <div
@@ -1028,6 +1069,12 @@ export function BenchmarkExplorer() {
     setActivePoint(null);
   }, []);
 
+  const resetModelSize = useCallback(() => {
+    setSizeMin(MODEL_SIZE_MIN);
+    setSizeMax(MODEL_SIZE_MAX);
+    setActivePoint(null);
+  }, []);
+
   return (
     <main>
       <section className="hero" id="top">
@@ -1063,28 +1110,6 @@ export function BenchmarkExplorer() {
         </div>
 
         <div className="controls">
-          <label className="search-control">
-            <span>Filter</span>
-            <input
-              value={query}
-              onChange={(event) => {
-                setQuery(event.target.value);
-                setActivePoint(null);
-              }}
-              placeholder="Model or lab"
-            />
-          </label>
-          <label className="highlight-control">
-            <span>Highlight</span>
-            <input
-              value={highlightQuery}
-              onChange={(event) => {
-                setHighlightQuery(event.target.value);
-                setActivePoint(null);
-              }}
-              placeholder="Model or lab"
-            />
-          </label>
           <div className="multi-select-control">
             <span>Labs</span>
             <details>
@@ -1130,8 +1155,20 @@ export function BenchmarkExplorer() {
               </div>
             </details>
           </div>
-          <label className="size-control">
-            <span>Model size</span>
+          <div className="size-control">
+            <div className="size-control-heading">
+              <span>Model size</span>
+              <button
+                type="button"
+                onClick={resetModelSize}
+                disabled={
+                  sizeMin === MODEL_SIZE_MIN && sizeMax === MODEL_SIZE_MAX
+                }
+                aria-label="Reset model size filter"
+              >
+                Reset
+              </button>
+            </div>
             <div className="size-range">
               <output>
                 {sizeMin === MODEL_SIZE_MIN && sizeMax === MODEL_SIZE_MAX
@@ -1187,7 +1224,7 @@ export function BenchmarkExplorer() {
                 />
               </div>
             </div>
-          </label>
+          </div>
           <label className="check-control">
             <input
               type="checkbox"
@@ -1227,6 +1264,28 @@ export function BenchmarkExplorer() {
         </div>
 
         <div className="chart-toolbar">
+          <label className="search-control">
+            <span>Filter</span>
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setActivePoint(null);
+              }}
+              placeholder="Model or lab"
+            />
+          </label>
+          <label className="highlight-control">
+            <span>Highlight</span>
+            <input
+              value={highlightQuery}
+              onChange={(event) => {
+                setHighlightQuery(event.target.value);
+                setActivePoint(null);
+              }}
+              placeholder="Model or lab"
+            />
+          </label>
           <span>Chart view</span>
           <div className="chart-toggles" aria-label="Chart view">
             <div className="cost-scale-toggle">
@@ -1304,11 +1363,11 @@ export function BenchmarkExplorer() {
           <div>
             <h3>Coverage</h3>
             <p>
-              All {data.meta.modelCount} model records and {data.meta.endpointCount} provider
-              variants from Artificial Analysis are retained, alongside{" "}
+              {data.meta.modelCount} of {data.meta.sourceModelCount} Artificial Analysis
+              model records have both a score and positive task cost and are included,
+              alongside {data.meta.endpointCount} provider variants and{" "}
               {data.meta.externalModelCount} current benchmark configurations, including{" "}
-              {data.meta.codingAgentModelCount} coding-agent runs. A point appears only where
-              both a score and positive task cost exist.
+              {data.meta.codingAgentModelCount} coding-agent runs.
             </p>
           </div>
           <div className="download-panel">
