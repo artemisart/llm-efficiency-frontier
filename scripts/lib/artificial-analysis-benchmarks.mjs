@@ -1,7 +1,7 @@
-// AA Intelligence Index v4.3 component weights, verified against the publisher's
+// AA Intelligence Index v4.3.2 component weights, verified against the publisher's
 // evaluation definitions. weightedCostPerTask is a contribution to the composite;
 // divide by its index weight to obtain a standalone evaluation's cost per task.
-export const AA_INDEX_VERSION = "4.3";
+export const AA_INDEX_VERSION = "4.3.2";
 export const AA_COMPONENT_WEIGHTS = {
   "aa-briefcase": 0.15,
   "gdpval-aa": 0.1,
@@ -25,12 +25,12 @@ const definitions = [
     scale: 1,
     scoreSuffix: "",
     description:
-      "Artificial Analysis Intelligence Index v4.3, combining ten independently run evaluations.",
+      "Artificial Analysis Intelligence Index v4.3.2, combining ten independently run evaluations.",
     costNote: "Weighted average cost per Intelligence Index task.",
   },
   {
-    id: "gdpval-aa-v2",
-    label: "GDPval-AA v2",
+    id: "gdpval-aa-v2-1",
+    label: "GDPval-AA v2.1",
     shortLabel: "GDPval",
     scoreField: "gdpval",
     costSlug: "gdpval-aa",
@@ -54,7 +54,7 @@ const definitions = [
   },
   {
     id: "terminal-bench-v2-1",
-    label: "Terminal-Bench v2.1",
+    label: "Terminal-Bench v2.1 — AA models",
     shortLabel: "Terminal",
     scoreField: "terminalBench21",
     costSlug: "terminalbench-2-1",
@@ -137,7 +137,7 @@ const definitions = [
     costNote: "Average cost per AA-LCR task.",
   },
   {
-    id: "aa-briefcase", label: "AA-Briefcase", shortLabel: "Briefcase",
+    id: "aa-briefcase", label: "AA-Briefcase v1.1", shortLabel: "Briefcase",
     scoreField: "briefcaseBreakdown.overall.elo", costSlug: "aa-briefcase", scale: 1, scoreSuffix: "",
     description: "Agentic knowledge work across 91 tasks in four multi-week business projects. The headline Elo combines rubric checks, analytical quality, and presentation.",
     costNote: "Average cost per AA-Briefcase task.",
@@ -149,7 +149,7 @@ const definitions = [
     costNote: "Average cost per AutomationBench-AA task.",
   },
   {
-    id: "terminal-bench-4-0", label: "Terminal-Bench 4.0", shortLabel: "Terminal 4.0",
+    id: "terminal-bench-4-0", label: "Terminal-Bench 4.0 — AA models", shortLabel: "Terminal 4.0",
     scoreField: "terminalBench40", costSlug: "terminalbench-4-0", scale: 100, scoreSuffix: "%",
     description: "A harder set of 66 terminal tasks across software, science, operations, and security. Artificial Analysis reports pass@1 averaged over three attempts per task.",
     costNote: "Average cost per Terminal-Bench 4.0 task.",
@@ -160,6 +160,54 @@ const definitions = [
     description: "Professional reasoning over long PDF documents across 100 tasks and ten domains. The All-pass score counts attempts that satisfy every grading criterion.",
     costNote: "Average cost per GDP.pdf task.",
   },
+  {
+    id: "aa-terminal-bench-science-0-1", label: "Terminal-Bench-Science 0.1 — AA", shortLabel: "TB-Science",
+    scoreField: "terminalBenchScience", costSlug: "terminal-bench-science", scale: 100, scoreSuffix: "%",
+    description: "Scientific research workflows across 70 terminal tasks in five scientific domains. AA uses mini-swe-agent and reports pass@1 averaged over three attempts per task, with isolated verification.",
+    costNote: "Average API cost per Terminal-Bench-Science task using AA’s canonical token counts and rates.",
+  },
+  {
+    id: "aa-analyst-agent", label: "AA-AnalystAgent", shortLabel: "AnalystAgent",
+    scoreField: "analystAgent", costSlug: "aa-analyst-agent", scale: 100, scoreSuffix: "%",
+    description: "End-to-end quantitative analysis across 80 questions in 14 business and scientific domains. Models use AA’s Stirrup harness to work from source spreadsheets and documents in a Python sandbox.",
+    costNote: "Average API cost per AA-AnalystAgent question using AA’s token counts and rates.",
+  },
+  {
+    id: "harvey-lab-aa-v1-1", label: "Harvey LAB-AA v1.1", shortLabel: "Harvey LAB",
+    scoreField: "harveyLab", costSlug: "harvey-lab-aa", scale: 100, scoreSuffix: "%",
+    description: "Legal deliverables across 120 private tasks and 24 practice areas. The headline Hallucination-Gated All-Pass Rate requires every rubric criterion to pass and no material hallucination; scores are separate from v1.0.",
+    costNote: "Average API cost per Harvey LAB-AA task using AA’s token counts and rates.",
+  },
+  {
+    id: "enterprise-ops-gym-aa", label: "EnterpriseOps-Gym-AA", shortLabel: "EnterpriseOps",
+    scoreField: "enterpriseOpsGym", costSlug: "enterprise-ops-gym-aa", scale: 100, scoreSuffix: "%",
+    description: "Stateful enterprise workflows across 1,117 tasks in eight domains. AA’s Stirrup agents operate sandboxed enterprise systems through MCP tools and are graded on the resulting database state.",
+    costNote: "Average API cost per EnterpriseOps-Gym-AA task using AA’s token counts and rates.",
+  },
+  {
+    id: "itbench-aa", label: "ITBench-AA", shortLabel: "ITBench",
+    scoreField: "itbenchSre", costSlug: "itbench-aa", scale: 100, scoreSuffix: "%",
+    description: "Kubernetes incident root-cause analysis on 59 public and private tasks, with three repeats through Stirrup. Precision at full recall gives zero when a ground-truth root cause is missed.",
+    costNote: "Average API cost per ITBench-AA incident using AA’s token counts and rates.",
+  },
+  {
+    id: "mlcr-aa", label: "MLCR-AA", shortLabel: "Medical LCR",
+    scoreField: "mlcrOverall", costSlug: "mlcr-aa", scale: 100, scoreSuffix: "%",
+    description: "Medical long-context reasoning across 60 questions over fragmented patient records. The overall pass rate requires a concise answer judged both complete and accurate.",
+    costNote: "Average API cost per MLCR-AA question using AA’s token counts and rates.",
+  },
+  {
+    id: "mmmu-pro", label: "MMMU-Pro", shortLabel: "MMMU-Pro",
+    scoreField: "mmmuPro", costSlug: "mmmu-pro", scale: 100, scoreSuffix: "%",
+    description: "Multimodal reasoning across 1,730 ten-option multiple-choice questions in 30 academic disciplines. AA reports pass@1 with answer extraction.",
+    costNote: "Average API cost per MMMU-Pro question using AA’s canonical token counts and rates.",
+  },
+  {
+    id: "aa-frontier-code-1-1-main", label: "FrontierCode 1.1 Main — AA", shortLabel: "FrontierCode AA",
+    scoreField: "frontierCode", costSlug: "frontiercode", scale: 100, scoreSuffix: "%",
+    description: "AA’s independent Stirrup runs on FrontierCode 1.1 Main’s 100 tasks, averaged over three attempts. Quality-adjusted mergeability is graded with held-out tests and rubrics; these are separate runs from Cognition’s leaderboard.",
+    costNote: "Average API cost per FrontierCode Main task using AA’s token counts and rates.",
+  },
 ];
 
 const artificialAnalysisMetadata = {
@@ -168,9 +216,9 @@ const artificialAnalysisMetadata = {
     sourceLabel: "Artificial Analysis",
     costAxisLabel: "Weighted average cost per task (USD)",
     description:
-      "Artificial Analysis Intelligence Index v4.3, combining ten independently run evaluations.",
+      "Artificial Analysis Intelligence Index v4.3.2, combining ten independently run evaluations.",
   },
-  "gdpval-aa-v2": {
+  "gdpval-aa-v2-1": {
     sourceUrl: "https://artificialanalysis.ai/evaluations/gdpval-aa",
     sourceLabel: "Artificial Analysis",
     costAxisLabel: "Average cost per task (USD)",
@@ -257,7 +305,7 @@ export function aaBenchmarkCost(model, benchmark) {
   const costs = model.intelligenceIndexCostPerTask;
   if (!benchmark.costSlug) return costs?.cost?.total ?? null;
   const weight = AA_COMPONENT_WEIGHTS[benchmark.costSlug];
-  // Retired versions remain separate historical charts, never borrowed costs.
+  // Legacy evaluations use their standalone token data, never borrowed weights.
   if (!weight) return null;
   const weighted = costs?.evaluations?.find((evaluation) => evaluation.slug === benchmark.costSlug)?.weightedCostPerTask;
   return Number.isFinite(weighted) ? weighted / weight : null;

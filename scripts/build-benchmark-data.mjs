@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 import { AA_BENCHMARKS, AA_COMPONENT_WEIGHTS, AA_INDEX_VERSION, aaBenchmarkCost, aaScore, validateAaCoverage } from "./lib/artificial-analysis-benchmarks.mjs";
 import { plottableModels } from "./lib/benchmark-data.mjs";
+import { AA_STANDALONE_EVALUATIONS, standaloneAaCost } from "./lib/aa-standalone-cost.mjs";
 
 const [mainInput, endpointsInput, appOutput, fullOutput, metadataInput] = process.argv.slice(2);
 if (!mainInput || !endpointsInput || !appOutput || !fullOutput) {
@@ -13,6 +14,8 @@ if (!mainInput || !endpointsInput || !appOutput || !fullOutput) {
 const main = JSON.parse(await readFile(mainInput, "utf8"));
 const endpoints = JSON.parse(await readFile(endpointsInput, "utf8"));
 const models = main.payload.models;
+const standalone = main.standaloneEvaluationPayload;
+const standaloneModels = new Map(standalone?.models.map((model) => [model.id, model]) ?? []);
 
 const benchmarks = AA_BENCHMARKS;
 if (!metadataInput) throw new Error("Pass source-metadata.json to identify the AA Index version before converting weighted costs");
@@ -39,8 +42,10 @@ const normalizedModels = plottableModels(
     },
     benchmarks: Object.fromEntries(
       benchmarks.flatMap((benchmark) => {
-        const rawScore = aaScore(model, benchmark);
-        const cost = aaBenchmarkCost(model, benchmark);
+        const standaloneDefinition = AA_STANDALONE_EVALUATIONS[benchmark.costSlug];
+        const standaloneModel = standaloneModels.get(model.id);
+        const rawScore = standaloneDefinition ? standaloneModel?.[standaloneDefinition.field] : aaScore(model, benchmark);
+        const cost = standaloneDefinition ? standaloneAaCost(standaloneModel, benchmark.costSlug, standalone?.priceFallbackByModelId?.[model.id]) : aaBenchmarkCost(model, benchmark);
         if (!Number.isFinite(rawScore) || !Number.isFinite(cost) || cost <= 0) {
           return [];
         }
@@ -120,6 +125,7 @@ const full = {
   renderedGraphDatasets: main.structuredDatasets,
   languageModelPayload: main.payload,
   endpointModelPayload: endpoints.payload,
+  standaloneEvaluationPayload: standalone,
 };
 
 await mkdir(dirname(appOutput), { recursive: true });

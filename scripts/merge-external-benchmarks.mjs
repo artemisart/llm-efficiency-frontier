@@ -12,6 +12,9 @@ const [
   liveBenchCategoriesPath,
   outputPath,
   deepSwePricingPath,
+  liveBench2TablePath,
+  liveBench2CostPath,
+  liveBench2CategoriesPath,
 ] = process.argv.slice(2);
 
 if (
@@ -21,10 +24,10 @@ if (
   !liveBenchTablePath ||
   !liveBenchCostPath ||
   !liveBenchCategoriesPath ||
-  !outputPath
+  !outputPath || !liveBench2TablePath || !liveBench2CostPath || !liveBench2CategoriesPath
 ) {
   throw new Error(
-    "Usage: node scripts/merge-external-benchmarks.mjs <base.json> <frontier-code.json> <deepswe.json> <livebench-table.csv> <livebench-cost.csv> <livebench-categories.json> <output.json> [deepswe-pricing.json]",
+    "Usage: node scripts/merge-external-benchmarks.mjs <base.json> <frontier-code.json> <deepswe.json> <livebench-table.csv> <livebench-cost.csv> <livebench-categories.json> <output.json> <deepswe-pricing.json> <livebench2-table.csv> <livebench2-cost.csv> <livebench2-categories.json>",
   );
 }
 
@@ -37,11 +40,15 @@ const deepSwePricing = JSON.parse(await readFile(
 const liveBenchRows = parseCsv(await readFile(liveBenchTablePath, "utf8"));
 const liveBenchCosts = parseCsv(await readFile(liveBenchCostPath, "utf8"));
 const liveBenchCategories = JSON.parse(await readFile(liveBenchCategoriesPath, "utf8"));
+const liveBench2Rows = parseCsv(await readFile(liveBench2TablePath, "utf8"));
+const liveBench2Costs = parseCsv(await readFile(liveBench2CostPath, "utf8"));
+const liveBench2Categories = JSON.parse(await readFile(liveBench2CategoriesPath, "utf8"));
 
 const externalBenchmarkIds = new Set([
   "frontier-code-1-1-main",
   "deep-swe-v1-1",
   "livebench-2026-06-25",
+  "livebench-2-0-2026-10-14",
 ]);
 const baseModels = plottableModels(
   base.models.filter(
@@ -59,7 +66,7 @@ const benchmarks = base.benchmarks
 benchmarks.push(
   {
     id: "frontier-code-1-1-main",
-    label: "FrontierCode 1.1 Main",
+    label: "FrontierCode 1.1 Main — Cognition",
     shortLabel: "FrontierCode",
     pricingNote: "Source-reported costs; a complete token and rate breakdown is unavailable for independent repricing.",
     scoreSuffix: "%",
@@ -74,7 +81,7 @@ benchmarks.push(
   },
   {
     id: "deep-swe-v1-1",
-    label: "DeepSWE v1.1",
+    label: "DeepSWE v1.1 — Datacurve",
     shortLabel: "DeepSWE",
     pricingNote: "Costs use DeepSWE’s updated API rates, including its promotional and peak-rate choices.",
     scoreSuffix: "%",
@@ -97,6 +104,19 @@ benchmarks.push(
       "A contamination-conscious benchmark of 23 objective tasks across reasoning, coding, agentic coding, mathematics, data analysis, language, and instruction following. Questions refresh every six months and are graded against verifiable answers.",
     costNote:
       "Published cost per successful task, which combines per-question spend with the model’s success rate rather than showing raw API price.",
+    costAxisLabel: "Cost per successful task (USD)",
+    sourceUrl: "https://livebench.ai/v1/",
+    sourceLabel: "LiveBench",
+    modelsWithData: 0,
+  },
+  {
+    id: "livebench-2-0-2026-10-14",
+    label: "LiveBench 2.0 (2026-10-14)",
+    shortLabel: "LiveBench 2.0",
+    pricingNote: "Source-reported run costs; not uniformly repriced to current API rates.",
+    scoreSuffix: "",
+    description: "Long-horizon work across seven suites: long-horizon tasks, reasoning, coding, browser use, data analysis, research, and design. Overall is the mean of suites with a score, with one run per suite. This task set is separate from LiveBench v1.",
+    costNote: "Published cost per successful task: pooled suite spend divided by task count and the rounded Overall success rate.",
     costAxisLabel: "Cost per successful task (USD)",
     sourceUrl: "https://livebench.ai/",
     sourceLabel: "LiveBench",
@@ -148,30 +168,35 @@ const deepSweModels = deepSwe.rows
     return model;
   });
 
-const liveBenchCostMap = new Map(liveBenchCosts.map((row) => [row.model, row]));
-const liveBenchModels = liveBenchRows.flatMap((row) => {
-  const { score: overall, cost } = liveBenchMetrics(row, liveBenchCostMap.get(row.model), liveBenchCategories);
-  if (!Number.isFinite(cost) || cost <= 0) return [];
-  const { baseSlug, effort } = liveBenchIdentity(row.model);
-  return [
-    externalModel({
-      id: `livebench:${row.model}`,
-      baseName: humanizeModel(baseSlug),
-      effort,
-      benchmarkId: "livebench-2026-06-25",
-      score: overall,
-      cost,
-      baseModels,
-      slugHint: baseSlug,
-    }),
-  ];
-});
+function liveBenchModelsFor(rows, costs, categories, benchmarkId, prefix) {
+  const liveBenchCostMap = new Map(costs.map((row) => [row.model, row]));
+  return rows.flatMap((row) => {
+    const { score: overall, cost } = liveBenchMetrics(row, liveBenchCostMap.get(row.model), categories);
+    if (!Number.isFinite(cost) || cost <= 0) return [];
+    const { baseSlug, effort } = liveBenchIdentity(row.model);
+    return [
+      externalModel({
+        id: `${prefix}${row.model}`,
+        baseName: humanizeModel(baseSlug),
+        effort,
+        benchmarkId,
+        score: overall,
+        cost,
+        baseModels,
+        slugHint: baseSlug,
+      }),
+    ];
+  });
+}
+const liveBenchModels = liveBenchModelsFor(liveBenchRows, liveBenchCosts, liveBenchCategories, "livebench-2026-06-25", "livebench:");
+const liveBench2Models = liveBenchModelsFor(liveBench2Rows, liveBench2Costs, liveBench2Categories, "livebench-2-0-2026-10-14", "livebench:v2:");
 
 const models = plottableModels([
   ...baseModels,
   ...frontierModels,
   ...deepSweModels,
   ...liveBenchModels,
+  ...liveBench2Models,
 ]);
 for (const benchmark of benchmarks) {
   benchmark.modelsWithData = models.filter(
@@ -275,6 +300,8 @@ function liveBenchIdentity(model) {
     ["minimal", /-(?:minimal-effort|minimal)$/],
   ];
   for (const [effort, pattern] of patterns) {
+    // Max is part of Qwen's model family name, not a suffix to strip.
+    if (/^qwen.*-max$/.test(model) && effort === "max") continue;
     if (pattern.test(model)) {
       return {
         effort,
@@ -294,6 +321,13 @@ function liveBenchIdentity(model) {
 }
 
 function humanizeModel(value) {
+  const aliases = {
+    "nemotron-ultra-3": "Nemotron 3 Ultra",
+    "nemotron-lightning-3.5": "Nemotron 3.5 Lightning",
+    "nemotron-super-vl-3.5": "Nemotron 3.5 Super VL",
+    "gemma-4-31b": "Gemma 4 31B",
+  };
+  if (aliases[value]) return aliases[value];
   let result = value
     .replace(/^gpt-(\d)[.-](\d)/, "GPT-$1.$2")
     .replace(/^claude-(opus|sonnet|fable)-(\d)[.-](\d)/, (_, family, major, minor) =>
@@ -337,7 +371,10 @@ function inferCreator(value) {
   const entries = [
     [/claude/, ["anthropic", "Anthropic", "#CC785C"]],
     [/\bgpt\b|gpt-/, ["openai", "OpenAI", "#1f1f1f"]],
-    [/gemini/, ["google", "Google", "#34A853"]],
+    [/gemini|gemma/, ["google", "Google", "#34A853"]],
+    [/mistral/, ["mistral", "Mistral", "#ff7000"]],
+    [/nemotron/, ["nvidia", "NVIDIA", "#76b900"]],
+    [/smaug/, ["abacus-ai", "Abacus.AI", "#2f54eb"]],
     [/deepseek/, ["deepseek", "DeepSeek", "#2243e6"]],
     [/grok/, ["xai", "xAI", "#736cd3"]],
     [/kimi/, ["kimi", "Kimi", "#047AFE"]],
@@ -359,7 +396,7 @@ function inferCreator(value) {
 }
 
 function inferOpenWeights(value) {
-  return /deepseek|qwen|glm|kimi/i.test(value);
+  return /deepseek|qwen|glm|kimi|nemotron|gemma|smaug/i.test(value);
 }
 
 function slugify(value) {

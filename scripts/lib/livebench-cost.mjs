@@ -6,7 +6,7 @@ export function liveBenchMetrics(row, costs, categories) {
   const scores = groups.map((tasks) => {
     const values = tasks.map((task) => Number.parseFloat(row[task])).filter(Number.isFinite);
     return values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : NaN;
-  });
+  }).filter(Number.isFinite);
   const score = Number((scores.reduce((sum, value) => sum + value, 0) / scores.length).toFixed(2));
   let spend = 0, count = 0;
   for (const task of groups.flat()) {

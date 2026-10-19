@@ -11,22 +11,22 @@ if (!datasetPath || !codingIndexPath || !outputPath) {
 
 const dataset = JSON.parse(await readFile(datasetPath, "utf8"));
 const source = JSON.parse(await readFile(codingIndexPath, "utf8"));
-const benchmarkId = "aa-coding-agent-index-v1-3";
+const benchmarkId = `aa-coding-agent-index-v${source.version.replaceAll(".", "-")}`;
 const modelPrefix = "coding-index:";
 const baseModels = plottableModels(
   dataset.models.filter((model) => !model.id.startsWith(modelPrefix)),
 );
 const benchmarks = dataset.benchmarks.filter(
-  (benchmark) => benchmark.id !== benchmarkId,
+  (benchmark) => !benchmark.id.startsWith("aa-coding-agent-index-v") && !benchmark.id.startsWith("aa-agents-"),
 );
 
 benchmarks.push({
   id: benchmarkId,
-  label: "AA Coding Agent Index v1.3",
+  label: `AA Coding Agent Index v${source.version}`,
   shortLabel: "Coding Agents",
   scoreSuffix: "%",
   description:
-    "A composite coding-agent benchmark spanning DeepSWE implementation tasks, Terminal-Bench v2 command-line workflows, and SWE-Atlas-QnA repository understanding. Each component averages pass@1 across three attempts per task, and the index gives all three components equal weight.",
+    `An equally weighted composite of ${source.components.join(", ")}. Each component averages pass@1 across three attempts per task.`,
   costNote:
     "Average observed pay-per-token API cost per task, including cached-input discounts and cache-write pricing where Artificial Analysis has that telemetry.",
   costAxisLabel: "Average API cost per task (USD)",
@@ -41,7 +41,7 @@ for (const model of baseModels) {
   creatorLookup.set(model.creator.slug.toLowerCase(), model.creator);
 }
 
-const codingModels = source.rows.map((row) => {
+const codingModels = source.rows.filter((row) => Number.isFinite(row.indexScore) && Number.isFinite(row.costUsdPerTask) && row.costUsdPerTask > 0).map((row) => {
   const displayName = `${row.agentName} · ${row.modelName}`;
   const creator =
     creatorLookup.get(row.modelCreator.toLowerCase()) ??
@@ -68,9 +68,9 @@ const codingModels = source.rows.map((row) => {
   };
 });
 const outputModels = plottableModels([...baseModels, ...codingModels]);
-benchmarks.at(-1).modelsWithData = outputModels.filter(
-  (model) => model.benchmarks[benchmarkId],
-).length;
+for (const benchmark of benchmarks) {
+  benchmark.modelsWithData = outputModels.filter((model) => model.benchmarks[benchmark.id]).length;
+}
 
 const output = {
   ...dataset,

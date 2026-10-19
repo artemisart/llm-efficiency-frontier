@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
+import benchmarkData from "./data/benchmark-data.json";
 import "./globals.css";
 
 const siteUrl = (
   process.env.NEXT_PUBLIC_SITE_URL ??
   "https://artemisart.github.io/llm-efficiency-frontier"
 ).replace(/\/$/, "");
+const benchmarkCount = benchmarkData.benchmarks.length;
+const comparisonDescription = `${benchmarkCount} benchmarks · ${benchmarkData.meta.sourceCount} sources · performance × cost`;
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteUrl),
   title: "LLM Efficiency Frontier — AI benchmark performance vs. cost",
   description:
-    "Compare model performance against measured task cost across 14 benchmarks in a focused analytical interface.",
+    `Compare model performance against measured task cost across ${benchmarkCount} benchmarks in a focused analytical interface.`,
   alternates: {
     canonical: siteUrl,
   },
@@ -19,14 +22,14 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "LLM Efficiency Frontier",
-    description: "14 benchmarks · 4 sources · performance × cost",
+    description: comparisonDescription,
     url: siteUrl,
     images: [`${siteUrl}/og-analytical.png`],
   },
   twitter: {
     card: "summary_large_image",
     title: "LLM Efficiency Frontier",
-    description: "14 benchmarks · 4 sources · performance × cost",
+    description: comparisonDescription,
     images: [`${siteUrl}/og-analytical.png`],
   },
 };

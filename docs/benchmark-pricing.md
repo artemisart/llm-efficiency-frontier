@@ -1,4 +1,12 @@
-# Benchmark pricing audit — 2026-09-16
+# Benchmark pricing audit — updated 2026-10-18
+
+The expanded October 18 source check refreshed 30 charts, restored standalone AA
+costs for the three previously historical charts, and added eight AA evaluations,
+official Terminal-Bench/Science sources, and LiveBench 2.0. All 30 charts have
+matching costs; the three individual AA agent components are excluded because
+their task costs are unavailable.
+See [the source audit](benchmark-sources.md) for current editions, counts, and
+verification. DeepSWE's rate adjustments below remain unchanged.
 
 Our charts follow each publisher's cost methodology. They are not a uniform
 estimate of what every historical run would cost at today's API prices.
@@ -62,9 +70,13 @@ $0.60562336; its score stayed 67.1875%.
 | --- | --- | --- |
 | AA Intelligence Index, GDPval-AA v2, SciCode, Humanity's Last Exam, CritPt, AA-Omniscience, AA-LCR | AA documents current provider rates and token-based costs. Its display reads the supplied cost fields. Luna's payload already lists 0.20 input / 0.02 cached / 1.20 output; Terra and Sol also reflect their revised rates. | Import the supplied costs; no second discount. |
 | AA Coding Agent Index v1.5 | The display reads `mean.costUsd`. Methodology describes pooled pay-per-token costs with cached input and cache-write handling. No separate client-side repricing was found. | Preserve AA's supplied cost. Do not apply DeepSWE's adjustments to AA's separate agent runs. |
-| τ³-Banking, Terminal-Bench v2.1, GPQA Diamond | The current AA payload no longer supplies matching cost pairs. | Retain the explicitly marked historical snapshot and its original date. No claim of current pricing. |
+| τ³-Banking, Terminal-Bench v2.1, GPQA Diamond | The standalone evaluation payload now supplies canonical token counts, rate cards, cache-hit policy, and fallback-model shares. These costs are absent from the current composite Index cost list. | Mirror AA's standalone token-cost calculation and task counts. All three charts now have fresh score/cost pairs; no historical fallback is needed in the October 18 snapshot. |
 | FrontierCode 1.1 Main | Its client maps `metrics.cost` directly into both the table and plot. The public JSON exposes aggregate cost and output tokens, but no complete input/cache token mix or rate baseline. | Preserve the publisher's cost. There is no evidence for an additional display adjustment or enough information to establish a safe independent repricing. |
 | LiveBench 2026-06-25 | The displayed cost is derived from per-task totals/question counts and the rounded overall score. The exported summary column can differ. Its reference rates include older prices, but actual totals may be recorded cache-aware `cost_usd` or token-derived fallback values. | Recompute cost per successful task exactly as displayed; do not treat reference price columns as proof of the actual billed rate for every run. Flag that this is source-reported pricing, not uniformly repriced to today's API rates. |
+| LiveBench 2.0 (2026-10-14) | Seven different suites use the same pooled spend/task-count cost definition. Overall averages suites that have a score. | Keep a separate chart, compute the displayed cost per successful task, and preserve source-reported rates. The public artifact filenames still use 2026_09_02. |
+| Eight additional AA standalone evaluations | Each has its own canonical token fields and task count. ITBench and MLCR use token-field aliases different from their score fields. | Apply AA's standalone token/rate/cache/fallback calculation, independently of Index component weights. |
+| AA agent DeepSWE, Terminal-Bench 4.0, SWE-Atlas-QnA | Public per-evaluation records contain scores and token totals, but omit evaluation-level spend and cache/rate detail. The Index's pooled cost is for a different task mix. | Exclude these individual component charts. Never apply the pooled Index cost to an individual evaluation, or infer spend from incomplete token totals. |
+| Official Terminal-Bench 4.0, 2.1, Science 0.1 | Public leaderboard records expose total cost and scored attempt counts. Science calls its repeated-attempt count `tasks`. | Plot `total_cost_usd / metrics.n_trials` (Science: `/ metrics.tasks`) and retain the total/divisor. Keep AA and official submissions separate; do not independently reprice historical submissions. |
 
 LiveBench's [repository documentation](https://github.com/LiveBench/new-livebench/blob/main/README.md)
 explicitly calls the model-level token and price fields tooltip/reference data.
@@ -90,6 +102,11 @@ cost_per_successful_task = cost_per_question / overall_score * 100
 - [LiveBench source documentation](https://github.com/LiveBench/new-livebench/blob/main/README.md), [cost CSV](https://livebench.ai/cost_2026_06_25.csv), and [display implementation at audit time](https://livebench.ai/static/js/main.ac6b12ef.js).
 
 ## Follow-up: AA Index v4.3 coverage and cost-weight correction
+
+This section describes the September correction. The October snapshot uses
+Index v4.3.2, AA-Briefcase v1.1, and GDPval-AA v2.1 with the same ten weights.
+The standalone-cost restoration above supersedes the historical-data limitation
+described at the end of this section.
 
 The gallery now includes all ten current Index components. AA-Briefcase,
 AutomationBench-AA, Terminal-Bench 4.0, and GDP.pdf were added; AA-LCR is labeled

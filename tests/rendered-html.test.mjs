@@ -27,7 +27,6 @@ test("static export contains the complete benchmark gallery in the intended orde
   assert.match(html, /type="range"/);
   assert.match(html, /aria-label="Reset model size filter"/);
   assert.match(html, /LLM Efficiency Frontier/);
-  assert.doesNotMatch(html, />AI21 Labs</);
   assert.match(html, />Performance →</);
   assert.doesNotMatch(html, />Performance vs\. cost</);
   assert.doesNotMatch(html, />Weighted average cost per Intelligence Index task\.</);
@@ -38,6 +37,10 @@ test("static export contains the complete benchmark gallery in the intended orde
   );
   assert.doesNotMatch(html, /sites\.openai\.com/);
   const dataset = JSON.parse(await readFile(new URL("../app/data/benchmark-data.json", import.meta.url), "utf8"));
+  assert.ok(html.includes(`content="${dataset.benchmarks.length} benchmarks · ${dataset.meta.sourceCount} sources · performance × cost"`));
+  // AI21 now has plottable standalone scores; it was previously excluded
+  // because it had no score/cost pairs, not because the lab is unsupported.
+  assert.equal(html.includes(">AI21 Labs<"), dataset.models.some((model) => model.creator.name === "AI21 Labs"));
   for (const benchmark of dataset.benchmarks.filter((item) => item.historical)) {
     assert.ok(html.includes(benchmark.refreshNote));
     assert.ok(html.includes(benchmark.refreshedAt.slice(0, 10)));
@@ -47,13 +50,15 @@ test("static export contains the complete benchmark gallery in the intended orde
     assert.ok(html.includes(benchmark.pricingNote));
   }
 
-  for (const label of ["AA-Briefcase", "AutomationBench-AA", "Terminal-Bench 4.0", "GDP.pdf", "AA-LCR v1.1"]) {
+  for (const label of ["AA-Briefcase v1.1", "AutomationBench-AA", "Terminal-Bench 4.0 — AA models", "GDP.pdf", "AA-LCR v1.1", "LiveBench 2.0 (2026-10-14)",
+    "Terminal-Bench-Science 0.1 — AA", "AA-AnalystAgent", "Harvey LAB-AA v1.1", "EnterpriseOps-Gym-AA", "ITBench-AA", "MLCR-AA", "MMMU-Pro", "FrontierCode 1.1 Main — AA",
+    "Terminal-Bench 4.0 — official", "Terminal-Bench 2.1 — official", "Terminal-Bench-Science 0.1 — official"]) {
     assert.ok(html.includes(`<h3>${label}</h3>`), `${label} is missing from the gallery`);
   }
 
   const intelligence = html.indexOf("<h3>Intelligence Index</h3>");
   const coding = html.search(/<h3>AA Coding Agent Index v[0-9.]+<\/h3>/);
-  const gdpval = html.indexOf("<h3>GDPval-AA v2</h3>");
+  const gdpval = html.indexOf("<h3>GDPval-AA v2.1</h3>");
   assert.ok(intelligence >= 0);
   assert.ok(coding > intelligence);
   assert.ok(gdpval > coding);
@@ -106,7 +111,7 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
     dataset.meta.modelCount,
     dataset.models.filter(
       (model) =>
-        !/^(?:coding-index|deep-swe|frontier-code|livebench):/.test(model.id),
+        !/^(?:coding-index|deep-swe|frontier-code|livebench|terminal-bench):/.test(model.id),
     ).length,
   );
   assert.ok(
@@ -114,8 +119,7 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
       Object.values(model.benchmarks).some(
         (value) =>
           Number.isFinite(value.score) &&
-          Number.isFinite(value.cost) &&
-          value.cost > 0,
+          Number.isFinite(value.cost) && value.cost > 0,
       ),
     ),
   );
@@ -125,4 +129,14 @@ test("ships collision-aware frontier labels, point info, and refreshed FrontierC
   assert.match(css, /\.highlight-control\s*\{/);
   assert.doesNotMatch(css, /\.cost-scale-toggle > i\s*\{/);
   assert.doesNotMatch(css, /\.tooltip\s*\{/);
+});
+
+test("gallery excludes AA agent components without published task costs", async () => {
+  const html = await render();
+  const dataset = JSON.parse(await readFile(new URL("../app/data/benchmark-data.json", import.meta.url), "utf8"));
+  assert.equal(dataset.benchmarks.length, 30);
+  assert.ok(dataset.benchmarks.every((benchmark) => !benchmark.id.startsWith("aa-agents-")));
+  assert.doesNotMatch(html, /score-ranking|score-only-card/);
+  for (const label of ["Terminal-Bench 4.0 — AA agents", "DeepSWE v1.1 — AA agents", "SWE-Atlas-QnA — AA agents"]) assert.ok(!html.includes(`<h3>${label}</h3>`));
+  for (const label of ["Terminal-Bench 4.0 — AA models", "Terminal-Bench 4.0 — official", "DeepSWE v1.1 — Datacurve"]) assert.ok(html.includes(`<h3>${label}</h3>`));
 });

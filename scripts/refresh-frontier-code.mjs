@@ -42,10 +42,7 @@ for (const [modelName, efforts] of Object.entries(frontierCode.data)) {
   }
 }
 
-const benchmarkOrder = new Map([
-  ["intelligence-index", 0],
-  ["aa-coding-agent-index-v1-3", 1],
-]);
+const benchmarkOrder = (id) => id === "intelligence-index" ? 0 : id.startsWith("aa-coding-agent-index-v") ? 1 : 2;
 const benchmarks = dataset.benchmarks
   .map((benchmark) => {
     if (benchmark.id === "intelligence-index") {
@@ -60,7 +57,7 @@ const benchmarks = dataset.benchmarks
         ...benchmark,
         costNote: benchmark.costNote.replace(/^Weighted cost/, "Average cost"),
         costAxisLabel:
-          benchmark.id === "aa-coding-agent-index-v1-3"
+          benchmark.id.startsWith("aa-coding-agent-index-v")
             ? benchmark.costAxisLabel
             : "Average cost per task (USD)",
       };
@@ -75,7 +72,7 @@ const benchmarks = dataset.benchmarks
   })
   .sort(
     (left, right) =>
-      (benchmarkOrder.get(left.id) ?? 2) - (benchmarkOrder.get(right.id) ?? 2),
+      benchmarkOrder(left.id) - benchmarkOrder(right.id),
   );
 const outputModels = plottableModels([...baseModels, ...frontierModels]);
 
@@ -148,6 +145,8 @@ function inferCreator(value) {
   const entries = [
     [/claude/, ["anthropic", "Anthropic", "#CC785C"]],
     [/\bgpt\b|gpt-/, ["openai", "OpenAI", "#1f1f1f"]],
+    [/gemini|gemma/, ["google", "Google", "#34A853"]],
+    [/mistral/, ["mistral", "Mistral", "#ff7000"]],
     [/deepseek/, ["deepseek", "DeepSeek", "#2243e6"]],
     [/grok/, ["xai", "SpaceXAI", "#736cd3"]],
     [/kimi/, ["kimi", "Kimi", "#047AFE"]],

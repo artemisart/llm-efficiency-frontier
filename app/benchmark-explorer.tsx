@@ -1088,7 +1088,7 @@ export function BenchmarkExplorer() {
         </div>
         <h1>LLM Efficiency Frontier</h1>
         <p className="hero-copy">
-          Performance is only half the story. This gallery puts benchmark scores and task costs on the same field, so you can see which models deliver more for less. The results come from Artificial Analysis, FrontierCode, DeepSWE, and LiveBench.
+          Performance is only half the story. This gallery puts benchmark scores and task costs on the same field, so you can see which models deliver more for less. The results come from Artificial Analysis, FrontierCode, DeepSWE, LiveBench, and the official Terminal-Bench leaderboards.
         </p>
       </section>
 
@@ -1103,7 +1103,7 @@ export function BenchmarkExplorer() {
             <h2>Every benchmark.<br />One field of view.</h2>
             <p>
               Artificial Analysis’s Intelligence Index and Coding Agent Index lead,
-              followed by the component evaluations and three independent software and
+              followed by the component evaluations and independent software and
               general-purpose benchmarks. Filters and cost scale apply to the complete gallery.
             </p>
           </div>
@@ -1346,7 +1346,9 @@ export function BenchmarkExplorer() {
             <p>
               Artificial Analysis model values come from its public graph payload, while
               Coding Agent Index values come from the structured data embedded in its public
-              leaderboard. FrontierCode, DeepSWE, and LiveBench use their official releases.
+              leaderboard. FrontierCode, DeepSWE, LiveBench, and Terminal-Bench also use
+              their official releases. Separately labeled cards preserve each evaluator’s
+              agent, model, harness, and benchmark edition.
             </p>
           </div>
           <div>
@@ -1357,7 +1359,7 @@ export function BenchmarkExplorer() {
               Coding Agent Index pools observed pay-per-token API cost per task across its
               suite. FrontierCode reports average task cost, DeepSWE mean rollout cost, and
               LiveBench cost per successful task. Axis labels and card notes make those
-              differences explicit.
+              differences explicit. Benchmarks without published task costs are excluded.
             </p>
           </div>
           <div>
@@ -1367,7 +1369,7 @@ export function BenchmarkExplorer() {
               model records have both a score and positive task cost and are included,
               alongside {data.meta.endpointCount} provider variants and{" "}
               {data.meta.externalModelCount} current benchmark configurations, including{" "}
-              {data.meta.codingAgentModelCount} coding-agent runs.
+              {data.meta.codingAgentModelCount} coding-agent variants.
             </p>
           </div>
           <div className="download-panel">
@@ -1398,6 +1400,7 @@ export function BenchmarkExplorer() {
           <a href="https://livebench.ai/" target="_blank" rel="noreferrer">
             LiveBench ↗
           </a>
+          <a href="https://www.tbench.ai/" target="_blank" rel="noreferrer">Terminal-Bench ↗</a>
         </div>
       </section>
     </main>

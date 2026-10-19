@@ -38,7 +38,7 @@ export function structuredDatasets(html) {
 // Read JSON arrays without evaluating any JavaScript from the source page.
 export function codingIndex(html, sourceRows) {
   const version = structuredDatasets(html).find((item) => item.name === "Coding Agent Index")
-    ?.description.match(/Coding Agent Index v(\d+\.\d+)/)?.[1];
+    ?.description.match(/Coding Agent Index v(\d+(?:\.\d+)+)/)?.[1];
   if (!version) throw new Error("Cannot identify the Coding Agent Index version");
   const flight = flightText(html);
   const candidates = [];
@@ -61,16 +61,16 @@ export function codingIndex(html, sourceRows) {
     }
   }
   const raw = new Map((sourceRows ?? candidates.flat()).map((row) => [row.id, row]));
-  const rows = [...raw.values()].filter((row) => Number.isFinite(row.indexScore) && Number.isFinite(row.mean?.costUsd) && row.mean.costUsd > 0)
+  const rows = [...raw.values()].filter((row) => Number.isFinite(row.indexScore))
     .map((row) => ({
       id: row.id, agentName: row.agentName, provider: row.provider,
       hostModelSlug: row.hostModelSlug, displayLabel: row.displayLabel,
-      variantOf: row.variantOf, agentCreator: row.display.creator?.agent ?? row.agentName,
-      modelCreator: row.display.creator?.model ?? row.provider, modelName: row.display.model,
+      variantOf: row.variantOf, agentCreator: row.agentCreator?.name ?? row.display.creator?.agent ?? row.agentName,
+      modelCreator: row.modelCreators?.map((creator) => creator.name).join(" + ") || row.display.creator?.model || row.provider, modelName: row.display.model,
       componentCount: row.indexComponentCount, evalCount: row.evalCount,
-      indexScore: row.indexScore, costUsdPerTask: row.mean.costUsd,
+      indexScore: row.indexScore, costUsdPerTask: row.mean?.costUsd ?? null,
     }));
-  if (!rows.length) throw new Error("No coding-agent scores with measured costs found");
+  if (!rows.length) throw new Error("No coding-agent scores found");
   const components = [...new Set([...raw.values()].flatMap((row) => row.evals.map((evaluation) => evaluation.evaluationDatasetSlug)))];
   return { sourceUrl: "https://artificialanalysis.ai/agents/coding-agents", extractedAt: new Date().toISOString(), version, components, rows };
 }
@@ -83,7 +83,8 @@ export function validateDataset(data) {
   for (const model of data.models) {
     if (!Object.keys(model.benchmarks).length) throw new Error(`No data for ${model.id}`);
     for (const [id, value] of Object.entries(model.benchmarks)) {
-      if (!ids.has(id) || !Number.isFinite(value.score) || !Number.isFinite(value.cost) || value.cost <= 0) throw new Error(`Invalid score/cost: ${model.id}, ${id}`);
+      const validCost = Number.isFinite(value.cost) && value.cost > 0;
+      if (!ids.has(id) || !Number.isFinite(value.score) || !validCost) throw new Error(`Invalid score/cost: ${model.id}, ${id}`);
     }
   }
   for (const benchmark of data.benchmarks) {
